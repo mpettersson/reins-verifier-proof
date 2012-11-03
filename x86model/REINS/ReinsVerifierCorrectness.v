@@ -51,10 +51,10 @@ Require Import X86Semantics.
 Require Import X86Lemmas.
 Require Import Monad.
 Require Import Int32.
-Require Import VerifierDFA.
-Require Import FastVerifier.
-Require Import DFACorrectness.
-Require Import NACLjmp.
+Require Import ReinsVerifierDFA.
+Require Import ReinsVerifier.
+Require Import ReinsDFACorrectness.
+Require Import Reinsjmp.
 
 
 Import X86_PARSER_ARG.

@@ -20,7 +20,7 @@ Require Import String.
 Require Import List.
 Require Import Bits.
 Require Import Decode.
-Require Import VerifierDFA.
+Require Import ReinsVerifierDFA.
 Require Import Eqdep.
 Unset Automatic Introduction.
 Set Implicit Arguments.
@@ -31,7 +31,7 @@ Import X86_PARSER_ARG.
 Import X86_PARSER.
 Import X86_BASE_PARSER.
 Import X86Syntax.
-Require Import DFACorrectness.
+Require Import ReinsDFACorrectness.
 Hint Constructors in_parser.
 
 Import ABSTRACT_MAKE_DFA.

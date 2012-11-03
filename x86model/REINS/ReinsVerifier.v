@@ -45,7 +45,7 @@ Require Import Bits.
 Require Import Decode.
 Require Import X86Syntax.
 Require Import Int32.
-Require Import VerifierDFA.
+Require Import ReinsVerifierDFA.
 
 Import X86_PARSER_ARG.
 Import X86_PARSER.

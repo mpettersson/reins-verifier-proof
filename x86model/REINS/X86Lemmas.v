@@ -22,7 +22,7 @@ Require Import X86Semantics.
 Require Import Monad.
 Require Import Int32.
 Require Import Eqdep.
-Require Import VerifierDFA.
+Require Import ReinsVerifierDFA.
 Close Scope char_scope.
 
 Import X86_RTL.
