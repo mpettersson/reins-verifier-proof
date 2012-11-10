@@ -200,6 +200,10 @@ Section BUILT_DFAS.
     let check_start_diff := Int32Set.diff jmpTargets startAddrs in
       Int32Set.for_all aligned_bool check_start_diff.
       
+  (* Rename to 'checkExecSection' *)
+  (* Add an IAT argument to check indirect jumps through the IAT actually target the IAT *)
+  (* Given an executable section, represented as a list of bytes,
+  *  check that the section obeys policy *)
   Definition checkProgram (buffer: list int8) : (bool * Int32Set.t) :=
     match process_buffer buffer with
       | None => (false, Int32Set.empty)
@@ -209,6 +213,11 @@ Section BUILT_DFAS.
             (checkJmpTargets check_addrs start_addrs),
            start_addrs)
     end.
+
+  (* Add new checkProgram that parses a PE file, finding the IAT, export table,
+   * and all executable sections, then
+   * - check that the export table contains only addresses of low memory chunk boundaries, and
+   * - feed each executable section and the IAT to checkExecSection *)
 
 End BUILT_DFAS.
 
