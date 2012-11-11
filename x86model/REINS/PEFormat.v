@@ -1,17 +1,17 @@
 (* How do I model a C union in Coq equivalently? *)
 (* How should I define DWORD? *)
-(* How do I define a vector as t? *)
+
+Require Import Bits.
+
+Inductive vector A : nat -> Type :=
+| vnil : vector A 0
+| vcons : forall (h:A) (n:nat), vector A n -> vector A (S n).
+
+Notation "[]" := (vnil _).
+Notation "h :: t" := (vcons _ h _ t) (at level 60, right associativity).
 
 
 Record _IMAGE_DOS_HEADER : Set  := mkImageDosHeader {
-	e_magic : WORD;
-	e_cblp : WORD;
-	e_cp : WORD;
-	e_crlc : WORD;
-	e_cparhdr : WORD;
-	e_minalloc : WORD;
-	e_maxalloc : WORD;
-	e_ss
 	e_magic: WORD;
 	e_cblp : WORD;
 	e_cp : WORD;
@@ -26,46 +26,46 @@ Record _IMAGE_DOS_HEADER : Set  := mkImageDosHeader {
 	e_cs : WORD;
 	e_lfarlc : WORD;
 	e_ovno : WORD;
-	e_res[4] : WORD;
+	e_res : vector WORD 4;
 	e_oemid : WORD;
 	e_oeminfo : WORD;
-	e_res2[10] : WORD;
-	e_lfanew : DWORD;
-}
+	e_res2 : vector WORD 10;
+	e_lfanew : DWORD
+}.
 
-Record _IMAGE_FILE_HEADER {
+Record _IMAGE_FILE_HEADER : Set := mkImageFileHeader {
 	Machine : WORD;
 	NumberOfSections : WORD;
 	TimeDateStamp : DWORD;
 	PointerToSymbolTable : DWORD;
 	NumberOfSymbols : DWORD;
 	SizeOfOptionalHeader : WORD;
-	Characteristics : WORD;
-};
+	Characteristics : WORD
+}.
 
-Definition IMAGE_DIRECTORY_ENTRY_EXPORT := 0;
-Definition IMAGE_DIRECTORY_ENTRY_IMPORT := 1;
-Definition IMAGE_DIRECTORY_ENTRY_RESOURCE := 2;
-Definition IMAGE_DIRECTORY_ENTRY_EXCEPTION :=3;
-Definition IMAGE_DIRECTORY_ENTRY_SECURITY :=4;
-Definition IMAGE_DIRECTORY_ENTRY_BASERELOC :=5;
-Definition IMAGE_DIRECTORY_ENTRY_DEBUG :=6;
-Definition IMAGE_DIRECTORY_ENTRY_COPYRIGHT :=7;
-Definition IMAGE_DIRECTORY_ENTRY_GLOBALPTR :=8;
-Definition IMAGE_DIRECTORY_ENTRY_TLS :=9;
-Definition IMAGE_DIRECTORY_ENTRY_LOAD_CONFIG :=10;
-Definition IMAGE_DIRECTORY_ENTRY_BOUND_IMPORT :=11;
-Definition IMAGE_DIRECTORY_ENTRY_IAT :=12;
-Definition IMAGE_DIRECTORY_ENTRY_DELAY_IMPORT :=13;
-Definition IMAGE_DIRECTORY_ENTRY_COM_DESCRIPTOR :=14;
-Definition IMAGE_DIRECTORY_ENTRY_END :=15
+Definition IMAGE_DIRECTORY_ENTRY_EXPORT := 0.
+Definition IMAGE_DIRECTORY_ENTRY_IMPORT := 1.
+Definition IMAGE_DIRECTORY_ENTRY_RESOURCE := 2.
+Definition IMAGE_DIRECTORY_ENTRY_EXCEPTION :=3.
+Definition IMAGE_DIRECTORY_ENTRY_SECURITY :=4.
+Definition IMAGE_DIRECTORY_ENTRY_BASERELOC :=5.
+Definition IMAGE_DIRECTORY_ENTRY_DEBUG :=6.
+Definition IMAGE_DIRECTORY_ENTRY_COPYRIGHT :=7.
+Definition IMAGE_DIRECTORY_ENTRY_GLOBALPTR :=8.
+Definition IMAGE_DIRECTORY_ENTRY_TLS :=9.
+Definition IMAGE_DIRECTORY_ENTRY_LOAD_CONFIG :=10.
+Definition IMAGE_DIRECTORY_ENTRY_BOUND_IMPORT :=11.
+Definition IMAGE_DIRECTORY_ENTRY_IAT :=12.
+Definition IMAGE_DIRECTORY_ENTRY_DELAY_IMPORT :=13.
+Definition IMAGE_DIRECTORY_ENTRY_COM_DESCRIPTOR :=14.
+Definition IMAGE_DIRECTORY_ENTRY_END :=15.
 
-Record _IMAGE_DATA_DIRECTORY {
+Record _IMAGE_DATA_DIRECTORY : Set := mkImageDataDirectory {
  VirtualAddress : DWORD;
- Size : DWORD;
-};
+ Size : DWORD
+}.
 
-Record _IMAGE_OPTIONAL_HEADER {
+Record _IMAGE_OPTIONAL_HEADER : Set := mkImageOptionalHeader {
 	Magic : WORD;
 	MajorLinkerVersion : BYTE;
 	MinorLinkerVersion : BYTE;
@@ -96,38 +96,38 @@ Record _IMAGE_OPTIONAL_HEADER {
 	SizeOfHeapCommit : DWORD;
 	LoaderFlags : DWORD;
 	NumberOfRvaAndSizes : DWORD;
-	DataDirectory : vector _IMAGE_DATA_DIRECTORY 16; (* still need to make this 16 long; 
+	DataDirectory : vector _IMAGE_DATA_DIRECTORY 16 (* still need to make this 16 long; 
 	represents an array of 16 _IMAGE_DATA_DIRECTORY types. Each one of these describes a particular thing per the Definitions above *)
-};
+}.
 
-Record _IMAGE_IMPORT_DESCRIPTOR {
+Record _IMAGE_IMPORT_DESCRIPTOR : Set := mkImageImportDescriptor {
 	OriginalFirstThunk : PIMAGE_THUNK_DATA; (* this was unioned with a characteristics field *)
 	TimeDateStamp : DWORD; 
 	ForwarderChain : DWORD; 
 	Name : DWORD;
-	FirstThunk : PIMAGE_THUNK_DATA;
-};
+	FirstThunk : PIMAGE_THUNK_DATA
+}.
 
 (* this needs to be modeled as a union *)
-typedef struct _IMAGE_THUNK_DATA {
+Record _IMAGE_THUNK_DATA : Set := mkImageThunkData{
 	ForwarderString : LPBYTE;
 	Function : PDWORD;
 	Ordinal : DWORD;
-	AddressOfData : PIMAGE_IMPORT_BY_NAME;
-}
+	AddressOfData : PIMAGE_IMPORT_BY_NAME
+}.
 
-typedef struct _IMAGE_IMPORT_BY_NAME {
+Record _IMAGE_IMPORT_BY_NAME : Set := mkImageImportByName {
  Hint : WORD;
- Name : vector 16 BYTE;
-}
+ Name : vector 16 BYTE
+}.
 
-Record _IMAGE_NT_HEADERS {
+Record _IMAGE_NT_HEADERS : Set := mkImageNtHeaders {
 	Signature : DWORD;
 	FileHeader : _IMAGE_FILE_HEADER;
-	OptionalHeader : _IMAGE_OPTIONAL_HEADER;
-};
+	OptionalHeader : _IMAGE_OPTIONAL_HEADER
+}.
 
-Record _IMAGE_SECTION_HEADER {
+Record _IMAGE_SECTION_HEADER : Set := mkImageSectionHeader {
 	Name[IMAGE_SIZEOF_SHORT_NAME] : BYTE;
 	PhysicalAddressORVirtualSize : DWORD;
 	VirtualAddress : DWORD;
@@ -137,8 +137,8 @@ Record _IMAGE_SECTION_HEADER {
 	PointerToLinenumbers : DWORD;
 	NumberOfRelocations : WORD;
 	NumberOfLinenumbers : WORD;
-	Characteristics : DWORD;
-};
+	Characteristics : DWORD
+}.
 
  (*
 Flag	Meaning
