@@ -10,6 +10,9 @@
  *   Inductive _x : Type :=
  *   | field_one : WORD -> _x
  *   | field_two : WORD -> _x.
+ * --doesn't handle the fact that you can initialize as one type, then
+ * --dereference as another...
+ * - IDEA: simple tuple of all possible types
  *
  * 2) name conflicts: some field names are repeated, but they are global names in
  *    Coq, e.g. _IMAGE_FILE_HEADER and _IMAGE_IMPORT_DESCRIPTOR both have a member
@@ -34,6 +37,9 @@ Notation "t [ n ]" := (vector n t) (at level 90, no associativity).
 Definition BYTE := int8.
 Definition WORD := int16.
 Definition DWORD := int32.
+
+Inductive Ptr : DWORD -> Type -> Type :=
+| ptr : forall (A : Type) (d : DWORD), DWORD -> A -> Ptr d A.
 
 Record _IMAGE_DOS_HEADER : Type  := mkImageDosHeader {
 	e_magic: WORD;
@@ -124,33 +130,29 @@ Record _IMAGE_OPTIONAL_HEADER : Type := mkImageOptionalHeader {
 	represents an array of 16 _IMAGE_DATA_DIRECTORY types. Each one of these describes a particular thing per the Definitions above *)
 }.
 
-(*TODO: real definition *)
-Definition PIMAGE_THUNK_DATA := WORD.
-
-Record _IMAGE_IMPORT_DESCRIPTOR : Type := mkImageImportDescriptor {
-	OriginalFirstThunk : PIMAGE_THUNK_DATA; (* this was unioned with a characteristics field *)
-	TimeDateStamp : DWORD; 
-	ForwarderChain : DWORD; 
-	Name : DWORD;
-	FirstThunk : PIMAGE_THUNK_DATA
-}.
-
 (*TODO: real definitions *)
 Definition LPBYTE := BYTE.
-Definition PDWORD := DWORD.
-Definition PIMAGE_IMPORT_BY_NAME := WORD.
-
-(* this needs to be modeled as a union *)
-Record _IMAGE_THUNK_DATA : Type := mkImageThunkData{
-	ForwarderString : LPBYTE;
-	Function : PDWORD;
-	Ordinal : DWORD;
-	AddressOfData : PIMAGE_IMPORT_BY_NAME
-}.
 
 Record _IMAGE_IMPORT_BY_NAME : Type := mkImageImportByName {
  Hint : WORD;
  Name : BYTE[16]
+}.
+
+
+(* this needs to be modeled as a union *)
+Record _IMAGE_THUNK_DATA : Type := mkImageThunkData{
+	ForwarderString : LPBYTE;
+	Function : forall (d : DWORD), Ptr d DWORD;
+	Ordinal : DWORD;
+	AddressOfData : forall (d : DWORD), Ptr d _IMAGE_IMPORT_BY_NAME
+}.
+
+Record _IMAGE_IMPORT_DESCRIPTOR : Type := mkImageImportDescriptor {
+	OriginalFirstThunk : forall (d : DWORD), Ptr d _IMAGE_THUNK_DATA; (* this was unioned with a characteristics field *)
+	TimeDateStamp : DWORD; 
+	ForwarderChain : DWORD; 
+	Name : DWORD;
+	FirstThunk : forall (d : DWORD), _IMAGE_THUNK_DATA
 }.
 
 Record _IMAGE_NT_HEADERS : Type := mkImageNtHeaders {
