@@ -22,6 +22,15 @@
  *    This is the only thing currently keeping this file from compiling.
  *)
  
+(* For now, as far as the name conflict goes, we don't have to replicate the C version of headers
+perfectly-that is for our information as we work with the program. Lets just make the _IMAGE_FILE_HEADER's 
+TimeDateStamp member be TimeDateStamp_IFH-this identifies it just fine and still keeps it separate from the 
+IMAGE_IMPORT_DESCRIPTOR's, which we can call TimeDateStamp_IID
+    -Adam*)
+(* Also, when it comes to unions, I think it best if we just keep track of all unions within the series
+of structs, and have a function interpret the data that's in it, and have the type actually be another list of bytes,
+this way, when anything is assigned to it, the functions always return updated results accordingly.
+    -Adam *)
 
 Require Import Bits.
 
@@ -40,6 +49,7 @@ Definition DWORD := int32.
 
 Inductive Ptr : DWORD -> Type -> Type :=
 | ptr : forall (A : Type) (d : DWORD), DWORD -> A -> Ptr d A.
+
 
 Record _IMAGE_DOS_HEADER : Type  := mkImageDosHeader {
 	e_magic: WORD;
@@ -66,11 +76,11 @@ Record _IMAGE_DOS_HEADER : Type  := mkImageDosHeader {
 Record _IMAGE_FILE_HEADER : Type := mkImageFileHeader {
 	Machine : WORD;
 	NumberOfSections : WORD;
-	TimeDateStamp : DWORD;
+	TimeDateStamp_IFH : DWORD;
 	PointerToSymbolTable : DWORD;
 	NumberOfSymbols : DWORD;
 	SizeOfOptionalHeader : WORD;
-	Characteristics : WORD
+	Characteristics_IFH : WORD
 }.
 
 Definition IMAGE_DIRECTORY_ENTRY_EXPORT := 0.
@@ -91,7 +101,7 @@ Definition IMAGE_DIRECTORY_ENTRY_COM_DESCRIPTOR :=14.
 Definition IMAGE_DIRECTORY_ENTRY_END :=15.
 
 Record _IMAGE_DATA_DIRECTORY : Type := mkImageDataDirectory {
- VirtualAddress : DWORD;
+ VirtualAddress_IDD : DWORD;
  Size : DWORD
 }.
 
@@ -135,7 +145,7 @@ Definition LPBYTE := BYTE.
 
 Record _IMAGE_IMPORT_BY_NAME : Type := mkImageImportByName {
  Hint : WORD;
- Name : BYTE[16]
+ Name_IIBN : BYTE[16]
 }.
 
 
@@ -149,10 +159,24 @@ Record _IMAGE_THUNK_DATA : Type := mkImageThunkData{
 
 Record _IMAGE_IMPORT_DESCRIPTOR : Type := mkImageImportDescriptor {
 	OriginalFirstThunk : forall (d : DWORD), Ptr d _IMAGE_THUNK_DATA; (* this was unioned with a characteristics field *)
-	TimeDateStamp : DWORD; 
+	TimeDateStamp_IID : DWORD; 
 	ForwarderChain : DWORD; 
-	Name : DWORD;
+	Name_IID : DWORD;
 	FirstThunk : forall (d : DWORD), _IMAGE_THUNK_DATA
+}.
+
+Record _IMAGE_EXPORT_DIRECTORY : Type := mkImageExportDirectory {
+	Characteristics_IED : DWORD;
+	TimeDateStamp : DWORD;
+	MajorVersion : WORD;
+	MinorVersion : WORD;
+	Name_IED : DWORD;
+	Base : DWORD;
+	NumberOfFunctions : DWORD;
+	NumberOfNames : DWORD;
+	AddressOfFunctions : DWORD; (* is an array of pointers to functions *)
+	AddressOfNames : DWORD;
+	AddressOfNameOrdinals : DWORD
 }.
 
 Record _IMAGE_NT_HEADERS : Type := mkImageNtHeaders {
@@ -161,19 +185,19 @@ Record _IMAGE_NT_HEADERS : Type := mkImageNtHeaders {
 	OptionalHeader : _IMAGE_OPTIONAL_HEADER
 }.
 (* TODO: what is IMAGE_SIZEOF_SHORT_NAME? *)
-Definition IMAGE_SIZEOF_SHORT_NAME := 1.
+Definition IMAGE_SIZEOF_SHORT_NAME := 8.
 
 Record _IMAGE_SECTION_HEADER : Type := mkImageSectionHeader {
-	Name : BYTE[IMAGE_SIZEOF_SHORT_NAME];
+	Name_ISH : BYTE[IMAGE_SIZEOF_SHORT_NAME];
 	PhysicalAddressORVirtualSize : DWORD;
-	VirtualAddress : DWORD;
+	VirtualAddress_ISH : DWORD;
 	SizeOfRawData : DWORD;
 	PointerToRawData : DWORD;
 	PointerToRelocations : DWORD;
 	PointerToLinenumbers : DWORD;
 	NumberOfRelocations : WORD;
 	NumberOfLinenumbers : WORD;
-	Characteristics : DWORD
+	Characteristics_ISH : DWORD
 }.
 
 (* The following list of Definitions are used for the characteristics field, 
