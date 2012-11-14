@@ -21,7 +21,6 @@ int main(int argc, char *argv[]) {
 	ofstream outFile;
 	outFile.open("out.v");
 	outFile << "Require Import Coq.Lists.List.\n";
-	outFile << "Require Import Int32.\n";
 	outFile << "Require Import ZArith.\n";
 	outFile << "Require Import Bits.\n\n";
 	outFile << "Open Scope Z_scope.\n\n";
@@ -31,6 +30,9 @@ int main(int argc, char *argv[]) {
 	for (int i = 0; i < pileOfBytes.size()-4; i+=4) {
 		if (i > 0) {
 			outFile << ", ";
+		}
+		if (i%12 == 0) {
+			outFile << "\n     ";
 		}
 		outFile << pileOfBytes[i+1] << ", " << pileOfBytes[i] << ", ";
 		outFile << pileOfBytes[i+3] << ", " << pileOfBytes[i+2];
