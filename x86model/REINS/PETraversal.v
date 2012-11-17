@@ -233,7 +233,7 @@ Definition derefImageNtHeader (data : list BYTE) (p : Ptr _IMAGE_NT_HEADER) : _I
         | ptr d _ => parseImageNtHeader data (dword_to_nat d)
         end.
 
-Definition getExports (data : list BYTE) {n : nat} : list DWORD :=
+Definition getExports (data : list BYTE) : list DWORD :=
     let dosHeader := parseImageDosHeader data in
     let ntHeader := derefImageNtHeader data (e_lfanew dosHeader) in
     let rva := (VirtualAddress_IDD (nth 0 (vtolist (DataDirectory (OptionalHeader ntHeader)))
