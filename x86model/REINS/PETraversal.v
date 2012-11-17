@@ -2,9 +2,9 @@
 (* write a function and turn them into DWORDs *)
 (* write a function that walks over the list of int_8's and initializes each type given in the PEFormat  *)
 (* write a function that uses and operations to determine what characteristics a section has *)
-Require Import PEFormat.
 Require Import out.
 Require Import Coq.Lists.List.
+Require Import PEFormat.
 Require Import Bits.
 
 
@@ -63,24 +63,22 @@ Definition initImageDosHeader :=
    (parseWord bytes 22)  (* e_cs *)
    (parseWord bytes 24)  (* e_lfarlc *)
    (parseWord bytes 26)  (* e_ovno *)
-   (vcons _ _ (parseWord bytes 28)
-   (vcons _ _ (parseWord bytes 30)
-   (vcons _ _ (parseWord bytes 32)
-   (vcons _ _ (parseWord bytes 34)
-   (vnil _)))))          (* e_res *)
+   ((parseWord bytes 28)::
+   (parseWord bytes 30)::
+   (parseWord bytes 32)::
+   (parseWord bytes 34)::[]) (* e_res *)
    (parseWord bytes 36)  (* e_oemid *)
    (parseWord bytes 38)  (* e_oeminfo *)
-   (vcons _ _ (parseWord bytes 40)
-   (vcons _ _ (parseWord bytes 42)
-   (vcons _ _ (parseWord bytes 44)
-   (vcons _ _ (parseWord bytes 46)
-   (vcons _ _ (parseWord bytes 48)
-   (vcons _ _ (parseWord bytes 50)
-   (vcons _ _ (parseWord bytes 52)
-   (vcons _ _ (parseWord bytes 54)
-   (vcons _ _ (parseWord bytes 56)
-   (vcons _ _ (parseWord bytes 58)
-   (vnil _)))))))))))    (* e_res2 *)
+   ((parseWord bytes 40)::
+   (parseWord bytes 42)::
+   (parseWord bytes 44)::
+   (parseWord bytes 46)::
+   (parseWord bytes 48)::
+   (parseWord bytes 50)::
+   (parseWord bytes 52)::
+   (parseWord bytes 54)::
+   (parseWord bytes 56)::
+   (parseWord bytes 58)::[]) (* e_res2 *)
    (parseDoubleWord bytes 60) (* e_lfanew *)
 .
 
