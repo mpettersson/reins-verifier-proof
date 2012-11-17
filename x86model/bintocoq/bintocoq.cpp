@@ -27,15 +27,14 @@ int main(int argc, char *argv[]) {
 	outFile << "Notation \" [ x , .. , y ] \" := (cons x .. (cons y nil) ..).\n\n";
 	
 	outFile << "Definition zs := [";
-	for (int i = 0; i < pileOfBytes.size()-4; i+=4) {
+	for (int i = 0; i < pileOfBytes.size(); i++) {
 		if (i > 0) {
 			outFile << ", ";
 		}
-		if (i%12 == 0) {
+		if (i%16 == 0) {
 			outFile << "\n     ";
 		}
-		outFile << pileOfBytes[i+1] << ", " << pileOfBytes[i] << ", ";
-		outFile << pileOfBytes[i+3] << ", " << pileOfBytes[i+2];
+		outFile << pileOfBytes[i];
 	}
 	outFile << "].\n\n";
 	

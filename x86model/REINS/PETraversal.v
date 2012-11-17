@@ -20,8 +20,8 @@ Definition bytes_to_word (msb : int16) (lsb : int16) : WORD :=
 
 (* takes list of bytes and idx and returns a WORD *)
 Definition parseWord (data : list BYTE) (n : nat) : WORD := 
-   bytes_to_word (int8_to_int16 (nth n data (Word.repr(0)))) 
-                 (int8_to_int16 (nth (S n) data (Word.repr(0))))  
+   bytes_to_word (int8_to_int16 (nth (S n) data (Word.repr(0)))) 
+                 (int8_to_int16 (nth n data (Word.repr(0))))  
 .
 
 (* use to cast int8 as int32 *)
@@ -41,10 +41,10 @@ Definition bytes_to_dword (w : int32) (x : int32)
 
 (* returns DWORD at idx *)
 Definition parseDoubleWord (data : list BYTE) (n : nat) : DWORD :=
-   bytes_to_dword (int8_to_int32 (nth n data (Word.repr(0))))
-                  (int8_to_int32 (nth (S n) data (Word.repr(0))))
+   bytes_to_dword (int8_to_int32 (nth (S (S (S n))) data (Word.repr(0))))
                   (int8_to_int32 (nth (S (S n)) data (Word.repr(0))))
-                  (int8_to_int32 (nth (S (S (S n))) data (Word.repr(0))))
+                  (int8_to_int32 (nth (S n) data (Word.repr(0))))
+                  (int8_to_int32 (nth n data (Word.repr(0))))
 .
 
 Definition initImageDosHeader :=
@@ -63,17 +63,39 @@ Definition initImageDosHeader :=
    (parseWord bytes 22)  (* e_cs *)
    (parseWord bytes 24)  (* e_lfarlc *)
    (parseWord bytes 26)  (* e_ovno *)
-   (* How to make a vector? *)
-. 
+   (vcons _ _ (parseWord bytes 28)
+   (vcons _ _ (parseWord bytes 30)
+   (vcons _ _ (parseWord bytes 32)
+   (vcons _ _ (parseWord bytes 34)
+   (vnil _)))))          (* e_res *)
+   (parseWord bytes 36)  (* e_oemid *)
+   (parseWord bytes 38)  (* e_oeminfo *)
+   (vcons _ _ (parseWord bytes 40)
+   (vcons _ _ (parseWord bytes 42)
+   (vcons _ _ (parseWord bytes 44)
+   (vcons _ _ (parseWord bytes 46)
+   (vcons _ _ (parseWord bytes 48)
+   (vcons _ _ (parseWord bytes 50)
+   (vcons _ _ (parseWord bytes 52)
+   (vcons _ _ (parseWord bytes 54)
+   (vcons _ _ (parseWord bytes 56)
+   (vcons _ _ (parseWord bytes 58)
+   (vnil _)))))))))))    (* e_res2 *)
+   (parseDoubleWord bytes 60) (* e_lfanew *)
+.
+
+Definition initImageNtHeaders :=
+.
+
+Definition initFileHeader :=
+ mkFileHeader
+   
+.
 
 Definition init := 
 .
 
-Definition initImageDosHeader :=
-.
 
-Definition initFileHeader :=
-.
 
 Fixpoint initOptionalHeader :=
 .
