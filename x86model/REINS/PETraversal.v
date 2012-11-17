@@ -8,6 +8,7 @@ Require Import Bits.
 Require Import Coq.ZArith.BinInt.
 Require Import Coq.NArith.BinPos.
 
+Open Scope vector_scope.
 
 (* use to cast int8 as int16 *)
 Definition int8_to_int16 (x : int8) : int16 :=
@@ -267,3 +268,5 @@ Definition parseSectionCharacteristics :=
 .
 
 Definition validateSection :=*)
+
+Close Scope vector_scope.

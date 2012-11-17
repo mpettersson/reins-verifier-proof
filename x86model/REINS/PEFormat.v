@@ -38,9 +38,11 @@ Inductive vector : nat -> Type -> Type :=
 | vnil : forall (A : Type), vector 0 A
 | vcons : forall (A : Type) (n : nat), A -> vector n A -> vector (S n) A.
 
-Notation "[]" := (vnil _).
-Notation "h :: t" := (vcons _ _ h t) (at level 60, right associativity).
-Notation "t [ n ]" := (vector n t) (at level 90, no associativity).
+Notation "[]" := (vnil _) : vector_scope.
+Notation "h :: t" := (vcons _ _ h t) (at level 60, right associativity) : vector_scope.
+Notation "t [ n ]" := (vector n t) (at level 90, no associativity) : vector_scope.
+
+Open Scope vector_scope.
 
 Fixpoint vtolist {A : Type} {l : nat} (v : vector l A) : list A :=
     match v with
@@ -246,3 +248,4 @@ Definition IMAGE_SCN_MEM_READ               : int32 := Word.repr 1073741824. (* 
 Definition IMAGE_SCN_MEM_WRITE              : int32 := Word.repr 4294967295. (* 0x80000000 section can be written to *)
 
 Close Scope Z_scope.
+Close Scope vector_scope.
