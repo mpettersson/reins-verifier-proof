@@ -22,12 +22,29 @@ int main(int argc, char *argv[]) {
 	outFile.open("out.v");
 	outFile << "Require Import Coq.Lists.List.\n";
 	outFile << "Require Import ZArith.\n";
-	outFile << "Require Import Bits.\n\n";
+	outFile << "Require Import Bits.\n";
+	outFile << "Require Import PETraversal.\n\n";
 	outFile << "Open Scope Z_scope.\n\n";
 	outFile << "Notation \" [ x , .. , y ] \" := (cons x .. (cons y nil) ..).\n\n";
 	
-	outFile << "Definition zs := [";
-	for (int i = 0; i < pileOfBytes.size(); i++) {
+	int max = 0;
+	for (int i = 0; i < pileOfBytes.size()-1; i+=3072) {
+		max++;
+		outFile << "Definition zs" << (i/3072) << " := [";
+
+		for (int j = 0; (j < 3072) && (i+j) < pileOfBytes.size()-1; j++) {
+			if (j > 0) {
+				outFile << ", ";
+			}
+			if (j%16 == 0) {
+				outFile << "\n     ";
+			}
+			outFile << pileOfBytes[i+j];
+		}
+		outFile << "].\n\n";
+	}
+	/*outFile << "Definition zs := [";
+	for (int i = 0; i < pileOfBytes.size()-1; i++) {
 		if (i > 0) {
 			outFile << ", ";
 		}
@@ -36,7 +53,7 @@ int main(int argc, char *argv[]) {
 		}
 		outFile << pileOfBytes[i];
 	}
-	outFile << "].\n\n";
+	outFile << "].\n\n";*/
 	
 	outFile << "Fixpoint zstois (l : list Z) : list int8 :=\n";
 	outFile << "   match l with\n";
@@ -44,6 +61,17 @@ int main(int argc, char *argv[]) {
 	outFile << "   | x::xs => (Word.repr x)::(zstois xs)\n";
 	outFile << "end.\n\n";
 	
-	outFile << "Definition bytes := zstois zs.\n";
+	outFile << "Definition zs := ";
+	for (int i = 0; i < max; i++) {
+		if (i == 0) {
+			outFile << "zs0";
+		} else {
+			outFile << "++zs" << i;
+		}
+	}
+	outFile << ".\n\n";
+	outFile << "Definition bytes := zstois zs.\n\n";
+	outFile << "Definition addresses := getExports bytes.\n";
+	//outFile << "Compute addresses.";
 	outFile.close();
 }

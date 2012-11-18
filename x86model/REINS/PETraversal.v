@@ -1,7 +1,3 @@
-(* write a function to read some int_8's  *)
-(* write a function and turn them into DWORDs *)
-(* write a function that walks over the list of int_8's and initializes each type given in the PEFormat  *)
-(* write a function that uses and operations to determine what characteristics a section has *)
 Require Import Coq.Lists.List.
 Require Import PEFormat.
 Require Import Bits.
@@ -210,22 +206,31 @@ Definition parseImageExportDirectory (data : list BYTE) (n : nat) : _IMAGE_EXPOR
       (parseDoubleWord data (n+36))
 .
 
+(* Adding a blankSectionHeader to return when one doesn't exist *)
+Definition z : int8 := Word.repr 0.
+Definition w : int16 := Word.repr 0.
+Definition d : int32 := Word.repr 0.
 
-Fixpoint findSection (data : list BYTE) (rva : DWORD) (n : nat) (num_sec : nat) : option _IMAGE_SECTION_HEADER :=
+Definition blankSectionHeader : _IMAGE_SECTION_HEADER :=
+  mkImageSectionHeader
+   (z::z::z::z::z::z::z::z::[])
+   d d d d d d w w d.
+
+Fixpoint findSection (data : list BYTE) (rva : DWORD) (n : nat) (num_sec : nat) : _IMAGE_SECTION_HEADER :=
     match num_sec with
-    | 0 => None
+    | 0 => blankSectionHeader
     | S n' => let curSection := parseImageSectionHeader data n in
               let v_start := VirtualAddress_ISH curSection in
               let v_end := Word.add v_start (SizeOfRawData curSection) in
-              if andb (Word.lequ v_start rva)  (Word.ltu rva v_end) then
-                  Some curSection
+              if andb (Word.lequ v_start rva) (Word.ltu rva v_end) then
+                 curSection
               else
                  findSection data rva (n + 40) n'
     end.
 
 
 Definition vAddr_to_offset (vaddr : DWORD) (header : _IMAGE_SECTION_HEADER) : DWORD :=
-    Word.sub vaddr (Word.add (VirtualAddress_ISH header) (PointerToRawData header)).
+    Word.add (Word.sub vaddr (VirtualAddress_ISH header)) (PointerToRawData header).
 
 
 Definition derefImageNtHeader (data : list BYTE) (p : Ptr _IMAGE_NT_HEADER) : _IMAGE_NT_HEADER :=
@@ -244,14 +249,10 @@ Definition getExports (data : list BYTE) : list DWORD :=
            let sectionHeader := findSection data rva
                                ((ptr_to_nat (e_lfanew dosHeader)) + 248)
                                (word_to_nat (NumberOfSections (FileHeader ntHeader))) in
-           match sectionHeader with
-           | None => nil
-           | Some header =>
-               let exportDir := parseImageExportDirectory data (dword_to_nat (vAddr_to_offset rva header)) in
+           let exportDir := parseImageExportDirectory data (dword_to_nat (vAddr_to_offset rva sectionHeader)) in
                vtolist (parseVector (parseDoubleWord) data 4
-                           (dword_to_nat (vAddr_to_offset (AddressOfFunctions exportDir) header))
+                           (dword_to_nat (vAddr_to_offset (AddressOfFunctions exportDir) sectionHeader))
                            (dword_to_nat (NumberOfFunctions exportDir)))
-           end
     end.
 
 
