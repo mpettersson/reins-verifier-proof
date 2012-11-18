@@ -255,6 +255,15 @@ Definition getExports (data : list BYTE) : list DWORD :=
                            (dword_to_nat (NumberOfFunctions exportDir)))
     end.
 
+(* given a file, check that all exported symbols target
+*  low memory chunk boundaries *)
+Definition checkExports (data : list BYTE) (mask : DWORD) : bool :=
+    let exports := getExports data in
+    let check (addr : DWORD) : bool :=
+        Word.eq addr (Word.and addr mask)
+    in
+    List.fold_left (andb) (List.map check exports) true
+.
 
 (*Definition parseImports :=
 .
