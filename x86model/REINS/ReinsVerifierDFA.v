@@ -177,9 +177,44 @@ Fixpoint bitslist (bs: list bool) : parser unit_t :=
     | b::bs' => Cat_p (Char_p b) (bitslist bs') @ (fun _ => tt %% unit_t)
   end.
 
-Definition nacl_MASK_p (r: register) : parser instruction_t :=
-      "1000" $$ "0011" $$ "11" $$ bits "100"    (* AND opcode for Imm to register*)
+(* Jumps that don't target the IAT must be preceded by a masking instruction
+   a la nacl *)
+Definition reins_nonIAT_MASK_p (r: register) : parser instruction_t :=
+    (* The masking AND is encoded as follows:
+     * "01100110" -- 0x66 = OPSIZE prefix, for a doubleword immediate operand
+     * "10000001" -- 0x81 = (opcode) AND r/m32 imm32 (32 from prefix)
+     * "11"       --      = Mod = 3: the first operand is from a register,
+     * "100"      --      = reg/opcode = 4: this is an opcode extension
+                            (this would otherwise indicate a second operand register)
+     * register   --      = 3 bits that pick which register
+     * mask       --      = a 32-bit immediate value
+     *)
+      "01100110" $$ "1000" $$ "0001" $$ "11" $$ bits "100"
     $ bitslist (register_to_bools r)             (* Register *)
+    $ bitslist (int_to_bools safeMask)
+    @ (fun _ => AND true (Reg_op r) (Imm_op (sign_extend8_32 safeMask))
+      %% instruction_t).
+
+(* Jumps that target the IAT must have the return address, [ESP], masked *)
+Definition reins_IAT_MASK_p : parser instruction_t :=
+    (* The masking AND is encoded as follows:
+     * "01100110" -- 0x66 = OPSIZE prefix, for a doubleword immediate operand
+     * "01100111" -- 0x67 = ADDRSIZE prefix, for a doubleword address operand
+     * "10000001" -- 0x81 = (opcode) AND r/m32 imm32 (32 from prefix)
+     * "00"       --      = Mod = 0: the first operand is a memory address
+     *                               stored in a register or using a Scale-Index-Byte
+     * "100"      --      = reg/opcode = 4: this is an opcode extension
+                            (this would otherwise indicate a second operand register)
+     * "100"      --      = use an SIB
+     * "00"       --      = Scale = 1: i.e. do not multiply the scaled index by a scale
+     * "100"      --      = Index = none: no index/offset
+     * "100"      --      = Base = 4: use ESP as the base (i.e. load the value at ESP)
+     * mask       --      = a 32-bit immediate value
+     *)
+      "01100110" $$ "01100111" $$
+      "1000" $$ "0001" $$
+      "00" $$ "100" $$ "100" $$
+      "00" $$ "100" $$ bits "100"
     $ bitslist (int_to_bools safeMask)
     @ (fun _ => AND true (Reg_op r) (Imm_op (sign_extend8_32 safeMask))
       %% instruction_t).
