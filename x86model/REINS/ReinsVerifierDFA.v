@@ -41,8 +41,7 @@ Definition logChunkSize := 4%nat.
 Definition chunkSize := two_power_nat logChunkSize.
 Definition lowMemCutoff := two_power_nat 28%nat. (* d = 2^28 *)
 Notation int8_of_nat n := (@repr 7 (Z_of_nat n)).
-(*Definition safeMask := shl (Word.mone 7) (int8_of_nat logChunkSize).*)
-Definition safeMask := sub (@repr 31 (Z_of_nat lowMemCutoff)) (@repr 31 (Z_of_nat chunkSize)).
+Definition safeMask := sub (@repr 31 lowMemCutoff) (@repr 31 chunkSize).
 
 Fixpoint int2bools_aux (bs : Z -> bool) (n: nat) : list bool :=
   match n with
