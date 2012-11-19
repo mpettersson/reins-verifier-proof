@@ -188,6 +188,8 @@ Fixpoint bitslist (bs: list bool) : parser unit_t :=
  *     a "D" descriptor, which changes whether 16 or 32 bit addr/ops
  *     are expected; the prefix toggles this expectation...*)
 
+(*TODO: fix returns (@(...))*)
+
 (* Jumps that don't target the IAT must be preceded by a masking instruction
    a la nacl *)
 Definition reins_nonIAT_MASK_p (r: register) : parser instruction_t :=
