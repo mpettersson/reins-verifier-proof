@@ -34,71 +34,29 @@ this way, when anything is assigned to it, the functions always return updated r
 
 Require Import Bits.
 
-Inductive vector : nat -> Set -> Type :=
-| vnil : forall (A : Set), vector 0 A
-| vcons : forall (A : Set) (n : nat), A -> vector n A -> vector (S n) A.
+Inductive vector : nat -> Type -> Type :=
+| vnil : forall (A : Type), vector 0 A
+| vcons : forall (A : Type) (n : nat), A -> vector n A -> vector (S n) A.
 
-Notation "[]" := (vnil _).
-Notation "h :: t" := (vcons _ _ h t) (at level 60, right associativity).
-Notation "t [ n ]" := (vector n t) (at level 90, no associativity).
+Notation "[]" := (vnil _) : vector_scope.
+Notation "h :: t" := (vcons _ _ h t) (at level 60, right associativity) : vector_scope.
+Notation "t [ n ]" := (vector n t) (at level 90, no associativity) : vector_scope.
 
+Open Scope vector_scope.
+
+Fixpoint vtolist {A : Type} {l : nat} (v : vector l A) : list A :=
+    match v with
+            | [] => nil
+            | h :: t => cons h (vtolist t)
+    end.
 
 Definition BYTE := int8.
 Definition WORD := int16.
 Definition DWORD := int32.
 
-Inductive Ptr : DWORD -> Type -> Type :=
-| ptr : forall (A : Type) (d : DWORD), DWORD -> A -> Ptr d A.
+Inductive Ptr : Type -> Type :=
+| ptr : DWORD -> forall (A : Type), Ptr A.
 
-
-Record _IMAGE_DOS_HEADER : Type  := mkImageDosHeader {
-	e_magic: WORD;
-	e_cblp : WORD;
-	e_cp : WORD;
-	e_crlc : WORD;
-	e_cparhdr : WORD;
-	e_minalloc : WORD;
-	e_maxalloc : WORD;
-	e_ss : WORD;
-	e_sp : WORD;
-	e_csum : WORD;
-	e_ip : WORD;
-	e_cs : WORD;
-	e_lfarlc : WORD;
-	e_ovno : WORD;
-	e_res : WORD[4];
-	e_oemid : WORD;
-	e_oeminfo : WORD;
-	e_res2 : WORD[10];
-	e_lfanew : DWORD
-}.
-
-Record _IMAGE_FILE_HEADER : Type := mkImageFileHeader {
-	Machine : WORD;
-	NumberOfSections : WORD;
-	TimeDateStamp_IFH : DWORD;
-	PointerToSymbolTable : DWORD;
-	NumberOfSymbols : DWORD;
-	SizeOfOptionalHeader : WORD;
-	Characteristics_IFH : WORD
-}.
-
-Definition IMAGE_DIRECTORY_ENTRY_EXPORT := 0.
-Definition IMAGE_DIRECTORY_ENTRY_IMPORT := 1.
-Definition IMAGE_DIRECTORY_ENTRY_RESOURCE := 2.
-Definition IMAGE_DIRECTORY_ENTRY_EXCEPTION :=3.
-Definition IMAGE_DIRECTORY_ENTRY_SECURITY :=4.
-Definition IMAGE_DIRECTORY_ENTRY_BASERELOC :=5.
-Definition IMAGE_DIRECTORY_ENTRY_DEBUG :=6.
-Definition IMAGE_DIRECTORY_ENTRY_COPYRIGHT :=7.
-Definition IMAGE_DIRECTORY_ENTRY_GLOBALPTR :=8.
-Definition IMAGE_DIRECTORY_ENTRY_TLS :=9.
-Definition IMAGE_DIRECTORY_ENTRY_LOAD_CONFIG :=10.
-Definition IMAGE_DIRECTORY_ENTRY_BOUND_IMPORT :=11.
-Definition IMAGE_DIRECTORY_ENTRY_IAT :=12.
-Definition IMAGE_DIRECTORY_ENTRY_DELAY_IMPORT :=13.
-Definition IMAGE_DIRECTORY_ENTRY_COM_DESCRIPTOR :=14.
-Definition IMAGE_DIRECTORY_ENTRY_END :=15.
 
 Record _IMAGE_DATA_DIRECTORY : Type := mkImageDataDirectory {
  VirtualAddress_IDD : DWORD;
@@ -140,6 +98,61 @@ Record _IMAGE_OPTIONAL_HEADER : Type := mkImageOptionalHeader {
 	represents an array of 16 _IMAGE_DATA_DIRECTORY types. Each one of these describes a particular thing per the Definitions above *)
 }.
 
+Record _IMAGE_FILE_HEADER : Type := mkImageFileHeader {
+	Machine : WORD;
+	NumberOfSections : WORD;
+	TimeDateStamp_IFH : DWORD;
+	PointerToSymbolTable : DWORD; (*should be a pointer, but not needed*)
+	NumberOfSymbols : DWORD;
+	SizeOfOptionalHeader : WORD;
+	Characteristics_IFH : WORD
+}.
+
+Record _IMAGE_NT_HEADER : Type := mkImageNtHeader {
+	Signature : DWORD;
+	FileHeader : _IMAGE_FILE_HEADER;
+	OptionalHeader : _IMAGE_OPTIONAL_HEADER
+}.
+
+Record _IMAGE_DOS_HEADER : Type  := mkImageDosHeader {
+	e_magic: WORD;
+	e_cblp : WORD;
+	e_cp : WORD;
+	e_crlc : WORD;
+	e_cparhdr : WORD;
+	e_minalloc : WORD;
+	e_maxalloc : WORD;
+	e_ss : WORD;
+	e_sp : WORD;
+	e_csum : WORD;
+	e_ip : WORD;
+	e_cs : WORD;
+	e_lfarlc : WORD;
+	e_ovno : WORD;
+	e_res : WORD[4];
+	e_oemid : WORD;
+	e_oeminfo : WORD;
+	e_res2 : WORD[10];
+	e_lfanew : Ptr _IMAGE_NT_HEADER
+}.
+
+Definition IMAGE_DIRECTORY_ENTRY_EXPORT := 0.
+Definition IMAGE_DIRECTORY_ENTRY_IMPORT := 1.
+Definition IMAGE_DIRECTORY_ENTRY_RESOURCE := 2.
+Definition IMAGE_DIRECTORY_ENTRY_EXCEPTION :=3.
+Definition IMAGE_DIRECTORY_ENTRY_SECURITY :=4.
+Definition IMAGE_DIRECTORY_ENTRY_BASERELOC :=5.
+Definition IMAGE_DIRECTORY_ENTRY_DEBUG :=6.
+Definition IMAGE_DIRECTORY_ENTRY_COPYRIGHT :=7.
+Definition IMAGE_DIRECTORY_ENTRY_GLOBALPTR :=8.
+Definition IMAGE_DIRECTORY_ENTRY_TLS :=9.
+Definition IMAGE_DIRECTORY_ENTRY_LOAD_CONFIG :=10.
+Definition IMAGE_DIRECTORY_ENTRY_BOUND_IMPORT :=11.
+Definition IMAGE_DIRECTORY_ENTRY_IAT :=12.
+Definition IMAGE_DIRECTORY_ENTRY_DELAY_IMPORT :=13.
+Definition IMAGE_DIRECTORY_ENTRY_COM_DESCRIPTOR :=14.
+Definition IMAGE_DIRECTORY_ENTRY_END :=15.
+
 (*TODO: real definitions *)
 Definition LPBYTE := BYTE.
 
@@ -152,13 +165,13 @@ Record _IMAGE_IMPORT_BY_NAME : Type := mkImageImportByName {
 (* this needs to be modeled as a union *)
 Record _IMAGE_THUNK_DATA : Type := mkImageThunkData{
 	ForwarderString : LPBYTE;
-	Function : forall (d : DWORD), Ptr d DWORD;
+	Function : Ptr DWORD;
 	Ordinal : DWORD;
-	AddressOfData : forall (d : DWORD), Ptr d _IMAGE_IMPORT_BY_NAME
+	AddressOfData : Ptr _IMAGE_IMPORT_BY_NAME
 }.
 
 Record _IMAGE_IMPORT_DESCRIPTOR : Type := mkImageImportDescriptor {
-	OriginalFirstThunk : forall (d : DWORD), Ptr d _IMAGE_THUNK_DATA; (* this was unioned with a characteristics field *)
+	OriginalFirstThunk : Ptr _IMAGE_THUNK_DATA; (* this was unioned with a characteristics field *)
 	TimeDateStamp_IID : DWORD; 
 	ForwarderChain : DWORD; 
 	Name_IID : DWORD;
@@ -177,12 +190,6 @@ Record _IMAGE_EXPORT_DIRECTORY : Type := mkImageExportDirectory {
 	AddressOfFunctions : DWORD; (* is an array of pointers to functions *)
 	AddressOfNames : DWORD;
 	AddressOfNameOrdinals : DWORD
-}.
-
-Record _IMAGE_NT_HEADERS : Type := mkImageNtHeaders {
-	Signature : DWORD;
-	FileHeader : _IMAGE_FILE_HEADER;
-	OptionalHeader : _IMAGE_OPTIONAL_HEADER
 }.
 (* TODO: what is IMAGE_SIZEOF_SHORT_NAME? *)
 Definition IMAGE_SIZEOF_SHORT_NAME := 8.
@@ -239,3 +246,6 @@ Definition IMAGE_SCN_MEM_SHARED             : int32 := Word.repr 268435456.  (* 
 Definition IMAGE_SCN_MEM_EXECUTE            : int32 := Word.repr 536870912.  (* 0x20000000 section can be executed *)
 Definition IMAGE_SCN_MEM_READ               : int32 := Word.repr 1073741824. (* 0x40000000 section can be read *)
 Definition IMAGE_SCN_MEM_WRITE              : int32 := Word.repr 4294967295. (* 0x80000000 section can be written to *)
+
+Close Scope Z_scope.
+Close Scope vector_scope.
