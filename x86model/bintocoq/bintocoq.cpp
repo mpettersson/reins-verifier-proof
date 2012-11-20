@@ -61,17 +61,26 @@ int main(int argc, char *argv[]) {
 	outFile << "   | x::xs => (Word.repr x)::(zstois xs)\n";
 	outFile << "end.\n\n";
 	
+	outFile << "Fixpoint zlstoils (l : list (list Z)) : list (list int8) :=\n";
+	outFile << "   match l with\n";
+	outFile << "   | nil => nil\n";
+	outFile << "   | h::t => (zstois h)::(zlstoils t)\n";
+	outFile << "end.\n\n";
+	
 	outFile << "Definition zs := ";
 	for (int i = 0; i < max; i++) {
 		if (i == 0) {
 			outFile << "zs0";
 		} else {
-			outFile << "++zs" << i;
+			outFile << "::zs" << i;
 		}
 	}
-	outFile << ".\n\n";
-	outFile << "Definition bytes := zstois zs.\n\n";
-	outFile << "Definition addresses := getExports bytes.\n";
+	outFile << "::nil.\n\n";
+
+	outFile << "Definition bytes := zlstoils zs.\n\n";
+	outFile << "Definition mask : int32 := Word.repr 268435440.\n";
+	//outFile << "Compute checkExports bytes mask.\n\n";
+	//outFile << "Definition addresses := getExports bytes.\n";
 	//outFile << "Compute addresses.";
 	outFile.close();
 }
