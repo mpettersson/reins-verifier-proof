@@ -331,22 +331,18 @@ Definition derefImageImportDescriptor (data : list DWORD)
 .
 *)
 
+Inductive IATBounds : Type :=
+| iatbounds : (DWORD * DWORD) -> IATBounds.
+
 (* this returns the RVA start address and the size as two DWORD elements *)
-Definition getIATBounds (data : list (list BYTE)) : DWORD [2] :=
+Definition getIATBounds (data : list (list BYTE)) : IATBounds :=
 	let optionalHeader := derefImageOptionalHeader data in
 	let IAT := derefDataDirectoryIAT optionalHeader in
-	(VirtualAddress_IDD IAT) :: (Size IAT) :: [] 
-.
-(*
-Fixpoint validateImports :=
+	iatbounds ((VirtualAddress_IDD IAT), (Size IAT))
 .
 
-Fixpoint validateExports :=
-.
-
-Definition parseSectionCharacteristics :=
-.
-
-Definition validateSection :=*)
+(* TODO: extract all executable sections *)
+Definition getExecutableSections (data : list (list BYTE)) : list (list BYTE) :=
+    nil.
 
 Close Scope vector_scope.

@@ -276,9 +276,12 @@ Definition mybits := b8 ++ b3 ++ be ++ b0 ++ be ++ b0 ++ bf ++ bf ++ be ++ b0.
 
 
 (* All possible forms of the reinsjmp *)
-Definition reinsjmp_mask : list (parser (pair_t instruction_t instruction_t)) := 
-  reinsjmp_nonIAT_p EAX :: reinsjmp_nonIAT_p ECX :: reinsjmp_nonIAT_p EDX :: reinsjmp_nonIAT_p EBX ::
-  reinsjmp_nonIAT_p EBP :: reinsjmp_nonIAT_p ESI :: reinsjmp_nonIAT_p EDI :: reinsjmp_IAT_p :: nil.
+Definition reinsjmp_nonIAT_mask : parser (pair_t instruction_t instruction_t) := 
+  alts (reinsjmp_nonIAT_p EAX :: reinsjmp_nonIAT_p ECX :: reinsjmp_nonIAT_p EDX :: reinsjmp_nonIAT_p EBX ::
+  reinsjmp_nonIAT_p EBP :: reinsjmp_nonIAT_p ESI :: reinsjmp_nonIAT_p EDI :: nil).
+
+Definition reinsjmp_IAT_mask : parser (pair_t instruction_t instruction_t) :=
+    reinsjmp_IAT_p.
 
   Fixpoint parseloop ps bytes := 
     match bytes with 
@@ -450,7 +453,7 @@ Definition reinsjmp_IAT_mask_instr (pfx1:prefix) (ins1:instr) (pfx2:prefix) (ins
     | _ => false
   end.
 
-Definition dfas := (make_dfa non_cflow_parser, make_dfa (alts dir_cflow), make_dfa (alts reinsjmp_mask)).
+Definition dfas := (make_dfa non_cflow_parser, make_dfa (alts dir_cflow), make_dfa reinsjmp_nonIAT_mask, make_dfa reinsjmp_IAT_mask).
 (* Extraction "tables.ml" dfas.*)
 
 
