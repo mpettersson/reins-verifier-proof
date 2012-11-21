@@ -79,8 +79,8 @@ Section BUILT_DFAS.
   (* In this section we will just assume the DFAs are all built;
      that is, non_cflow_dfa should be the result of "make_dfa non_cflow_parser" and
      similarly for dir_cflow_dfa and nacljmp_dfa *)
-  Variable non_cflow_dfa : DFA.
-  Variable dir_cflow_dfa : DFA.
+  Variable non_cflow_p : parser (pair_t prefix_t instruction_t).
+  Variable dir_cflow_p : parser instruction_t.
   Variable reinsjmp_nonIAT_mask : parser (pair_t instruction_t instruction_t).
   Variable reinsjmp_IAT_mask : parser (pair_t instruction_t instruction_t).
 
@@ -97,6 +97,16 @@ Section BUILT_DFAS.
       end.
   Definition reinsjmp_IAT_dfa : DFA :=
       match make_dfa reinsjmp_IAT_mask with
+      | None => empty_dfa
+      | Some x => x
+      end.
+  Definition non_cflow_dfa : DFA :=
+      match make_dfa non_cflow_p with
+      | None => empty_dfa
+      | Some x => x
+      end.
+  Definition dir_cflow_dfa : DFA :=
+      match make_dfa dir_cflow_p with
       | None => empty_dfa
       | Some x => x
       end.
@@ -270,9 +280,8 @@ Section BUILT_DFAS.
     checkAligned_aux (startAddrs, 0, len).
 
   (* checking all jump targets are either in startAddrs or are aligned addresses *)
-  Definition checkJmpTargets (jmpTargets startAddrs: Int32Set.t) := 
-    let check_start_diff := Int32Set.diff jmpTargets startAddrs in
-      Int32Set.for_all aligned_bool check_start_diff.
+  Definition checkJmpTargets (jmpTargets: Int32Set.t) := 
+    Int32Set.for_all aligned_bool jmpTargets.
       
   Definition checkIATAddresses (iat : IATBounds) (iatAddresses : Int32Set.t) : bool :=
     match iat with
@@ -294,7 +303,7 @@ Section BUILT_DFAS.
       | None => (false, Int32Set.empty)
       | Some (start_addrs, check_addrs, iat_check_addrs, call_check_addrs) => 
           (andb (andb (andb (checkAligned start_addrs (length buffer))
-            (checkJmpTargets check_addrs start_addrs)) (checkIATAddresses iat iat_check_addrs))
+            (checkJmpTargets check_addrs)) (checkIATAddresses iat iat_check_addrs))
             (checkCallAlignment call_check_addrs),
           start_addrs)
     end.

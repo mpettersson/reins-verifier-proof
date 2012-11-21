@@ -152,6 +152,9 @@ Definition dir_near_CALL_p : parser instruction_t :=
 Definition dir_cflow : list (parser instruction_t) :=
   dir_near_JMP_p :: dir_near_Jcc_p :: dir_near_CALL_p :: nil.
 
+Definition dir_cflow_parser : parser instruction_t :=
+  alts dir_cflow.
+
 Definition register_to_Z (r: register) :=
   match r with
     | EAX => 0
@@ -189,7 +192,7 @@ Definition reins_nonIAT_MASK_p (r: register) : parser instruction_t :=
      * register   --      = 3 bits that pick which register
      * mask       --      = a 32-bit immediate value
      *)
-    "01100110" $$ "1000" $$ "0001" $$ "11" $$ bits "100"
+    "1000" $$ "0001" $$ "11" $$ bits "100"
     $ bitslist (register_to_bools r)             (* Register *)
     $ bitslist (int_to_bools safeMask)
     @ (fun _ => AND true (Reg_op r) (Imm_op safeMask)
