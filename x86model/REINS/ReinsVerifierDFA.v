@@ -152,7 +152,7 @@ Definition dir_near_CALL_p : parser instruction_t :=
 Definition dir_cflow : list (parser instruction_t) :=
   dir_near_JMP_p :: dir_near_Jcc_p :: dir_near_CALL_p :: nil.
 
-Definition dir_cflow_parsr : parser instruction_t :=
+Definition dir_cflow_parser : parser instruction_t :=
   alts dir_cflow.
 
 Definition register_to_Z (r: register) :=
