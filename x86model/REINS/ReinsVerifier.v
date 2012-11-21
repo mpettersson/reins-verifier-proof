@@ -46,6 +46,8 @@ Require Import Decode.
 Require Import X86Syntax.
 Require Import Int32.
 Require Import ReinsVerifierDFA.
+Require Import PEFormat.
+Require Import PETraversal.
 
 Import X86_PARSER_ARG.
 Import X86_PARSER.
@@ -79,7 +81,25 @@ Section BUILT_DFAS.
      similarly for dir_cflow_dfa and nacljmp_dfa *)
   Variable non_cflow_dfa : DFA.
   Variable dir_cflow_dfa : DFA.
-  Variable nacljmp_dfa : DFA.
+  Variable reinsjmp_nonIAT_mask : parser (pair_t instruction_t instruction_t).
+  Variable reinsjmp_IAT_mask : parser (pair_t instruction_t instruction_t).
+
+  Definition empty_dfa := {| dfa_num_states := 0%nat;
+                             dfa_states := nil;
+                             dfa_transition := nil;
+                             dfa_accepts := nil;
+                             dfa_rejects := nil |}.
+
+  Definition reinsjmp_nonIAT_dfa : DFA :=
+      match make_dfa reinsjmp_nonIAT_mask with
+      | None => empty_dfa
+      | Some x => x
+      end.
+  Definition reinsjmp_IAT_dfa : DFA :=
+      match make_dfa reinsjmp_IAT_mask with
+      | None => empty_dfa
+      | Some x => x
+      end.
 
   (* G.T.: may be a good idea to parametrize the DFA w.r.t. the ChunkSize;
      Google's verifier allows it either to be 16 or 32.
@@ -105,6 +125,38 @@ Section BUILT_DFAS.
       | _ => None
     end.
 
+  Record instParserState' := mkPS' {
+      inst_ctxt' : ctxt_t;
+      inst_regexp' : regexp (pair_t instruction_t instruction_t);
+      inst_regexp_wf' : wf_regexp inst_ctxt' inst_regexp'
+  }.
+
+  Definition parse_byte' (ps:instParserState') (b:int8) : 
+    instParserState' * list (instr * instr) := 
+    let cs := byte_explode b in 
+    let r' := deriv_parse' (inst_regexp' ps) cs in
+    let wf' := wf_derivs (inst_ctxt' ps) cs (inst_regexp' ps) (inst_regexp_wf' ps) in
+      (mkPS' (inst_ctxt' ps) r' wf', apply_null (inst_ctxt' ps) r' wf').
+
+  Fixpoint parseloop' (ps:instParserState') (bytes:list int8) : 
+    option ((instr * instr) * list int8) := 
+    match bytes with 
+      | nil => None
+      | b::bs => match parse_byte' ps b with 
+                   | (ps',nil) => parseloop' ps' bs
+                   | (_, v::_) => Some (v,bs)
+                 end
+    end.
+
+
+  Definition extract_indirect_jmp bytes : option (option address) :=
+    let regexp_pair := parser2regexp reinsjmp_IAT_mask in
+    let ips := mkPS' (snd regexp_pair) (fst regexp_pair) (p2r_wf reinsjmp_IAT_mask _) in
+    match (parseloop' ips bytes) with
+    | Some ((_, JMP true true (Address_op addr) None), _) => Some (Some addr)
+    | Some ((_, RET _ _), _) => Some None
+    | _ => None
+    end.
 
   (* Note: it's important to specify the type of tokens as "list token_id", not
      "list nat", even though token_id is defined to be nat. If a proof environment
@@ -113,32 +165,51 @@ Section BUILT_DFAS.
      be unfolded. *)
 
   Fixpoint process_buffer_aux (loc: int32) (n: nat) (tokens:list token_id) 
-    (curr_res: Int32Set.t * Int32Set.t) :=
-    let (start_instrs, check_list) := curr_res in
+    (curr_res: Int32Set.t * Int32Set.t * Int32Set.t) :=
+    let (start_check_list, iat_check_list) := curr_res in
+    let (start_instrs,check_list) := start_check_list in
       match tokens with
         | nil => Some curr_res
         | _ => (* There are left over bytes in the buffer *)
           match n with
             | O => None 
             | S m =>
-              match (dfa_recognize 256 non_cflow_dfa tokens,
-                dfa_recognize 256 dir_cflow_dfa tokens,
-                dfa_recognize 256 nacljmp_dfa tokens) with
-                | (Some (len, remaining), None, None) => 
-                  process_buffer_aux (loc +32_n len) m remaining
-                  (Int32Set.add loc start_instrs, check_list)
+              match
+               (dfa_recognize 256 non_cflow_dfa       tokens,
+                dfa_recognize 256 dir_cflow_dfa       tokens,
+                dfa_recognize 256 reinsjmp_nonIAT_dfa tokens,
+                dfa_recognize 256 reinsjmp_IAT_dfa    tokens) with
 
-                | (None, Some (len, remaining), None) => 
+                | (Some (len, remaining), None, None, None) => 
+                  process_buffer_aux (loc +32_n len) m remaining
+                  (Int32Set.add loc start_instrs, check_list, iat_check_list)
+
+                | (None, Some (len, remaining), None, None) => 
                   match extract_disp (List.map token2byte (firstn len tokens)) with
                     | None => None
                     | Some disp => 
                       process_buffer_aux (loc +32_n len) m remaining 
                       (Int32Set.add loc start_instrs,
-                        Int32Set.add (loc +32_n len +32 disp) check_list)
+                       Int32Set.add (loc +32_n len +32 disp) check_list,
+                       iat_check_list)
                   end
-                | (Some res0, None, Some (len, remaining)) => 
+
+                | (Some res0, None, Some (len, remaining), None) => 
                   process_buffer_aux (loc +32_n len) m remaining
-                  (Int32Set.add loc start_instrs, check_list)
+                  (Int32Set.add loc start_instrs, check_list, iat_check_list)
+
+                | (Some res0, None, None, Some (len, remaining)) =>
+                  match extract_indirect_jmp (List.map token2byte (firstn len tokens)) with
+                  | None => None
+                  | Some (Some indir) =>
+                    process_buffer_aux (loc +32_n len) m remaining
+                    (Int32Set.add loc start_instrs, check_list,
+                     Int32Set.add (addrDisp indir) iat_check_list)
+                  | Some None =>
+                    process_buffer_aux (loc +32_n len) m remaining
+                    (Int32Set.add loc start_instrs, check_list, iat_check_list)
+                  end
+
                 | _ => None (* None of the DFAs matched or too many DFAs matched *)
               end
           end
@@ -154,29 +225,11 @@ Section BUILT_DFAS.
      *)
   Definition process_buffer (buffer: list int8) :=
     process_buffer_aux (Word.repr 0) (length buffer) (List.map byte2token buffer) 
-     (Int32Set.empty, Int32Set.empty).
+     (Int32Set.empty, Int32Set.empty, Int32Set.empty).
 
   Definition aligned_bool (a:int32):bool := 
     Zeq_bool (Zmod (unsigned a) chunkSize) 0.
   Definition aligned (a:int32) := aligned_bool a = true.
-
-  (* This calls process_buffer. If that returns a None, then the
-     program is not safe. If process_buffer returns a set of start
-     addresses and known jump addresses, then we need to check that
-     any address in the jump addresses which is not in the start addresses
-     is aligned. This is done by taking the set difference of check_addrs
-     and start_addrs, filtering check_addrs for all of the aligned addresses
-     and then checking that the filtering process doesn't remove anything
-     (Perhaps it's faster to do a filter on the negation of aligned_bool
-     and then check that the result is empty).
-
-     We also check that the number of aligned start_addrs
-     is equal to the number of aligned addresses we should have if
-     this code segment is loaded at an aligned address.
-
-     The count of the number of aligned addresses could be done in the
-     process_buffer loop, but I didn't want to complicate the logic
-     there any more.  *)
 
   Require Import Recdef.
   Function checkAligned_aux (p: Int32Set.t * Z * nat) {measure snd p}
@@ -200,28 +253,51 @@ Section BUILT_DFAS.
     let check_start_diff := Int32Set.diff jmpTargets startAddrs in
       Int32Set.for_all aligned_bool check_start_diff.
       
+  Definition checkIATAddresses (iat : IATBounds) (iatAddresses : Int32Set.t) : bool :=
+    match iat with
+    | iatbounds (start, size) =>
+        let checkAddress addr := andb (lequ start addr) (lequ addr (start +32 size)) in
+          Int32Set.for_all checkAddress iatAddresses
+    end.
+
   (* Rename to 'checkExecSection' *)
   (* Add an IAT argument to check indirect jumps through the IAT actually target the IAT *)
   (* Given an executable section, represented as a list of bytes,
   *  check that the section obeys policy *)
-  Definition checkProgram (buffer: list int8) : (bool * Int32Set.t) :=
+  Definition checkExecSection (iat : IATBounds) (buffer: list int8) : (bool * Int32Set.t) :=
     match process_buffer buffer with
       | None => (false, Int32Set.empty)
-      | Some (start_addrs, check_addrs) => 
-        let check_start_diff := Int32Set.diff check_addrs start_addrs in
-          (andb (checkAligned start_addrs (length buffer))
-            (checkJmpTargets check_addrs start_addrs),
-           start_addrs)
+      | Some (start_addrs, check_addrs, iat_check_addrs) => 
+          (andb (andb (checkAligned start_addrs (length buffer))
+            (checkJmpTargets check_addrs start_addrs)) (checkIATAddresses iat iat_check_addrs),
+          start_addrs)
     end.
 
-  (* Add new checkProgram that parses a PE file, finding the IAT, export table,
-   * and all executable sections, then
-   * - check that the export table contains only addresses of low memory chunk boundaries, and
-   * - feed each executable section and the IAT to checkExecSection *)
+  (* Given a PE file, check the following properties for each executable section:
+   * - All executable sections reside in low memory (TODO: get execs, check them)
+   * - All exported symbols target low memory chunk boundaries (checkExports)
+   * - No disassembled instruction spans a chunk boundary (checkAligned)
+   * - Static branches target low memory chunk boundaries (checkJmpTargets)
+   * - Non-IAT computed jumps are masked (reinsjmp_nonIAT_mask)
+   * - IAT computed jumps have return addr masked and actually target the iat
+   *     (reinsjmp_IAT_mask + checkIATAddresses)
+   * - Call instructions end on a chunk bounary (TODO)
+   * - No trap instructions (will not parse)
+   *)
+  Definition checkProgram (data : list (list int8)) : (bool * Int32Set.t) :=
+    let exec := getExecutableSections data in
+    let iat := getIATBounds data in
+    match checkExports data safeMask with
+    | false => (false,Int32Set.empty)
+    | true  => let exec_check := List.map (checkExecSection iat) exec in
+               (List.fold_left andb (List.map (@fst _ _) exec_check) true,
+                List.fold_left Int32Set.union (List.map (@snd _ _) exec_check) Int32Set.empty)
+    end.
+
 
 End BUILT_DFAS.
 
-Definition ncflow := make_dfa non_cflow_parser.
+(*Definition ncflow := make_dfa non_cflow_parser.
 Definition dbranch := make_dfa (alts dir_cflow).
-Definition ibranch := make_dfa (alts nacljmp_mask).
+Definition ibranch := make_dfa (alts reinsjmp_mask).*)
 (*Extraction "fastverif.ml" checkProgram ncflow dbranch ibranch.*)
