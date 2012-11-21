@@ -108,6 +108,13 @@ Fixpoint parseVector {A : Type} (parse : list (list BYTE) -> Z -> A)
     | S count' => (parse data n) :: (parseVector parse data size (n + size) count')
     end.
 
+Fixpoint copySection (data : list (list BYTE)) (start : Z) (size : Z) (n : nat) : list (list BYTE) :=
+   match n with
+   | O => cons (vtolist (parseVector parseByte data 1 start (Z_to_nat size))) nil
+   | S n' => cons (vtolist (parseVector parseByte data 1 start (Z_to_nat block_size)))
+             (copySection data (start+block_size) (size - block_size) n')
+end.
+
 Definition parseImageDosHeader (data : list (list BYTE)) : _IMAGE_DOS_HEADER :=
  mkImageDosHeader 
    (parseWord data 0)   (* e_magic *)
@@ -242,24 +249,14 @@ Definition parseImageThunkData (data : list (list BYTE)) (n : Z) : _IMAGE_THUNK_
 	(parsePtr data (n+9))	(*AddressOfData *)
 .
 
-(* Adding a blankSectionHeader to return when one doesn't exist *)
-Definition z : int8 := Word.repr 0.
-Definition w : int16 := Word.repr 0.
-Definition d : int32 := Word.repr 0.
-
-Definition blankSectionHeader : _IMAGE_SECTION_HEADER :=
-  mkImageSectionHeader
-   (z::z::z::z::z::z::z::z::[])
-   d d d d d d w w d.
-
-Fixpoint findSection (data : list (list BYTE)) (rva : DWORD) (n : Z) (num_sec : nat) : _IMAGE_SECTION_HEADER :=
+Fixpoint findSection (data : list (list BYTE)) (rva : DWORD) (n : Z) (num_sec : nat) : option _IMAGE_SECTION_HEADER :=
     match num_sec with
-    | 0 => blankSectionHeader
+    | 0 => None
     | S n' => let curSection := parseImageSectionHeader data n in
               let v_start := VirtualAddress_ISH curSection in
               let v_end := Word.add v_start (SizeOfRawData curSection) in
               if andb (Word.lequ v_start rva) (Word.ltu rva v_end) then
-                 curSection
+                 Some curSection
               else
                  findSection data rva (n + 40) n'
     end.
@@ -285,10 +282,14 @@ Definition getExports (data : list (list BYTE)) : list DWORD :=
            let sectionHeader := findSection data rva
                                ((ptr_to_Z (e_lfanew dosHeader)) + 248)
                                (word_to_nat (NumberOfSections (FileHeader ntHeader))) in
-           let exportDir := parseImageExportDirectory data (dword_to_Z (vAddr_to_offset rva sectionHeader)) in
+           match sectionHeader with
+           | None => nil
+           | Some header =>           
+               let exportDir := parseImageExportDirectory data (dword_to_Z (vAddr_to_offset rva header)) in
                vtolist (parseVector (parseDoubleWord) data 4
-                           (dword_to_Z (vAddr_to_offset (AddressOfFunctions exportDir) sectionHeader))
-                           (dword_to_nat (NumberOfFunctions exportDir)))
+                           (dword_to_Z (vAddr_to_offset (AddressOfFunctions exportDir) header))
+                           (dword_to_nat (NumberOfFunctions exportDir))) 
+           end
     end.
 
 (* given a file, check that all exported symbols target
@@ -341,8 +342,22 @@ Definition getIATBounds (data : list (list BYTE)) : IATBounds :=
 	iatbounds ((VirtualAddress_IDD IAT), (Size IAT))
 .
 
-(* TODO: extract all executable sections *)
+(* For now, extracting from AddressOfEntryPoint to end of its section *)
 Definition getExecutableSections (data : list (list BYTE)) : list (list BYTE) :=
-    nil.
+    let dosHeader := parseImageDosHeader data in
+    let ntHeader := derefImageNtHeader data (e_lfanew dosHeader) in
+    let vEntryPt := AddressOfEntryPoint (OptionalHeader ntHeader) in
+    let sectionHeader := findSection data vEntryPt
+                               ((ptr_to_Z (e_lfanew dosHeader)) + 248)
+                               (word_to_nat (NumberOfSections (FileHeader ntHeader))) in
+    match sectionHeader with
+    | None => nil
+    | Some header => 
+                     let start := vAddr_to_offset vEntryPt header in
+                     let last := Word.add (SizeOfRawData header) (PointerToRawData header) in
+                     let size := Word.sub last start in
+                     let numSections := Z_to_nat (Zdiv (Word.unsigned size) block_size) in
+                     copySection data (Word.unsigned start) (Word.unsigned size) numSections
+end.   
 
 Close Scope vector_scope.
