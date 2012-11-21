@@ -125,6 +125,11 @@ Section BUILT_DFAS.
       | _ => None
     end.
 
+  (* parseloop, X86_PARSER.parse_byte, and X86_PARSER.instParserState all have a
+     too-restrictive type, expecting the underlying parser to parse a prefix and
+     an instruction. For our reinsjmp parsers, we are parsing pairs of instructions,
+     so we redefine these three functions with that in mind *)
+
   Record instParserState' := mkPS' {
       inst_ctxt' : ctxt_t;
       inst_regexp' : regexp (pair_t instruction_t instruction_t);
@@ -158,6 +163,15 @@ Section BUILT_DFAS.
     | _ => None
     end.
 
+  Definition is_call bytes : bool :=
+    let regexp_pair := parser2regexp reinsjmp_IAT_mask in
+    let ips := mkPS' (snd regexp_pair) (fst regexp_pair) (p2r_wf reinsjmp_IAT_mask _) in
+    match (parseloop' ips bytes) with
+    | Some ((_, CALL _ _ _ _), _) => true
+    | _ => false
+    end.
+
+
   (* Note: it's important to specify the type of tokens as "list token_id", not
      "list nat", even though token_id is defined to be nat. If a proof environment
      has one value of type "list token_id" and the other of type "list nat", 
@@ -165,9 +179,9 @@ Section BUILT_DFAS.
      be unfolded. *)
 
   Fixpoint process_buffer_aux (loc: int32) (n: nat) (tokens:list token_id) 
-    (curr_res: Int32Set.t * Int32Set.t * Int32Set.t) :=
-    let (start_check_list, iat_check_list) := curr_res in
-    let (start_instrs,check_list) := start_check_list in
+    (curr_res: Int32Set.t * Int32Set.t * Int32Set.t * Int32Set.t) :=
+    match curr_res with
+    | (start_instrs, check_list, iat_check_list, call_check_list) =>
       match tokens with
         | nil => Some curr_res
         | _ => (* There are left over bytes in the buffer *)
@@ -182,7 +196,7 @@ Section BUILT_DFAS.
 
                 | (Some (len, remaining), None, None, None) => 
                   process_buffer_aux (loc +32_n len) m remaining
-                  (Int32Set.add loc start_instrs, check_list, iat_check_list)
+                  (Int32Set.add loc start_instrs, check_list, iat_check_list, call_check_list)
 
                 | (None, Some (len, remaining), None, None) => 
                   match extract_disp (List.map token2byte (firstn len tokens)) with
@@ -191,12 +205,17 @@ Section BUILT_DFAS.
                       process_buffer_aux (loc +32_n len) m remaining 
                       (Int32Set.add loc start_instrs,
                        Int32Set.add (loc +32_n len +32 disp) check_list,
-                       iat_check_list)
+                       iat_check_list,
+                       call_check_list)
                   end
 
                 | (Some res0, None, Some (len, remaining), None) => 
                   process_buffer_aux (loc +32_n len) m remaining
-                  (Int32Set.add loc start_instrs, check_list, iat_check_list)
+                  (if is_call (List.map token2byte (firstn len tokens)) then
+                      (Int32Set.add loc start_instrs, check_list, iat_check_list,
+                       Int32Set.add loc call_check_list)
+                  else
+                      (Int32Set.add loc start_instrs, check_list, iat_check_list, call_check_list))
 
                 | (Some res0, None, None, Some (len, remaining)) =>
                   match extract_indirect_jmp (List.map token2byte (firstn len tokens)) with
@@ -204,16 +223,18 @@ Section BUILT_DFAS.
                   | Some (Some indir) =>
                     process_buffer_aux (loc +32_n len) m remaining
                     (Int32Set.add loc start_instrs, check_list,
-                     Int32Set.add (addrDisp indir) iat_check_list)
+                     Int32Set.add (addrDisp indir) iat_check_list,
+                     call_check_list)
                   | Some None =>
                     process_buffer_aux (loc +32_n len) m remaining
-                    (Int32Set.add loc start_instrs, check_list, iat_check_list)
+                    (Int32Set.add loc start_instrs, check_list, iat_check_list, call_check_list)
                   end
 
                 | _ => None (* None of the DFAs matched or too many DFAs matched *)
               end
           end
-      end.
+      end
+    end.
 
   (* The idea here is, given a list of int8s representing the code,
      we call process_buffer_aux with n := length of the list;
@@ -225,7 +246,7 @@ Section BUILT_DFAS.
      *)
   Definition process_buffer (buffer: list int8) :=
     process_buffer_aux (Word.repr 0) (length buffer) (List.map byte2token buffer) 
-     (Int32Set.empty, Int32Set.empty, Int32Set.empty).
+     (Int32Set.empty, Int32Set.empty, Int32Set.empty, Int32Set.empty).
 
   Definition aligned_bool (a:int32):bool := 
     Zeq_bool (Zmod (unsigned a) chunkSize) 0.
@@ -260,16 +281,21 @@ Section BUILT_DFAS.
           Int32Set.for_all checkAddress iatAddresses
     end.
 
-  (* Rename to 'checkExecSection' *)
-  (* Add an IAT argument to check indirect jumps through the IAT actually target the IAT *)
+  Definition checkCallAlignment (callAddrs : Int32Set.t) : bool :=
+    let checkCall (call : int32) : bool :=
+      aligned_bool (call +32 (repr 2)) (*Allowed CALL instructions are always 2 bytes*)
+    in
+      Int32Set.for_all checkCall callAddrs.
+
   (* Given an executable section, represented as a list of bytes,
   *  check that the section obeys policy *)
   Definition checkExecSection (iat : IATBounds) (buffer: list int8) : (bool * Int32Set.t) :=
     match process_buffer buffer with
       | None => (false, Int32Set.empty)
-      | Some (start_addrs, check_addrs, iat_check_addrs) => 
-          (andb (andb (checkAligned start_addrs (length buffer))
-            (checkJmpTargets check_addrs start_addrs)) (checkIATAddresses iat iat_check_addrs),
+      | Some (start_addrs, check_addrs, iat_check_addrs, call_check_addrs) => 
+          (andb (andb (andb (checkAligned start_addrs (length buffer))
+            (checkJmpTargets check_addrs start_addrs)) (checkIATAddresses iat iat_check_addrs))
+            (checkCallAlignment call_check_addrs),
           start_addrs)
     end.
 
