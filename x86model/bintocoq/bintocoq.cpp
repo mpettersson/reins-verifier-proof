@@ -43,17 +43,6 @@ int main(int argc, char *argv[]) {
 		}
 		outFile << "].\n\n";
 	}
-	/*outFile << "Definition zs := [";
-	for (int i = 0; i < pileOfBytes.size()-1; i++) {
-		if (i > 0) {
-			outFile << ", ";
-		}
-		if (i%16 == 0) {
-			outFile << "\n     ";
-		}
-		outFile << pileOfBytes[i];
-	}
-	outFile << "].\n\n";*/
 	
 	outFile << "Fixpoint zstois (l : list Z) : list int8 :=\n";
 	outFile << "   match l with\n";
@@ -78,9 +67,5 @@ int main(int argc, char *argv[]) {
 	outFile << "::nil.\n\n";
 
 	outFile << "Definition bytes := zlstoils zs.\n\n";
-	outFile << "Definition mask : int32 := Word.repr 268435440.\n";
-	//outFile << "Compute checkExports bytes mask.\n\n";
-	//outFile << "Definition addresses := getExports bytes.\n";
-	//outFile << "Compute addresses.";
 	outFile.close();
 }

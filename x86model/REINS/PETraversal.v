@@ -342,22 +342,32 @@ Definition getIATBounds (data : list (list BYTE)) : IATBounds :=
 	iatbounds ((VirtualAddress_IDD IAT), (Size IAT))
 .
 
-(* For now, extracting from AddressOfEntryPoint to end of its section *)
-Definition getExecutableSections (data : list (list BYTE)) : list (list BYTE) :=
-    let dosHeader := parseImageDosHeader data in
-    let ntHeader := derefImageNtHeader data (e_lfanew dosHeader) in
-    let vEntryPt := AddressOfEntryPoint (OptionalHeader ntHeader) in
-    let sectionHeader := findSection data vEntryPt
-                               ((ptr_to_Z (e_lfanew dosHeader)) + 248)
-                               (word_to_nat (NumberOfSections (FileHeader ntHeader))) in
-    match sectionHeader with
-    | None => nil
-    | Some header => 
-                     let start := vAddr_to_offset vEntryPt header in
-                     let last := Word.add (SizeOfRawData header) (PointerToRawData header) in
-                     let size := Word.sub last start in
-                     let numSections := Z_to_nat (Zdiv (Word.unsigned size) block_size) in
-                     copySection data (Word.unsigned start) (Word.unsigned size) numSections
-end.   
+(* Grabs executable sections defined in the section headers *)
+Fixpoint getExecutableBounds (data : list (list BYTE)) (start : Z) (n : nat) 
+                             : list (DWORD * DWORD * list (list BYTE)) :=
+   match n with
+   | O => nil   
+   | S n' =>
+             let sectionHeader := parseImageSectionHeader data start in
+             let containsExec := Word.eq (Word.and IMAGE_SCN_CNT_CODE (Characteristics_ISH sectionHeader)) IMAGE_SCN_CNT_CODE in
+             match containsExec with
+             | false => getExecutableBounds data (start+40) n'
+             | true => 
+                            let rstart := PointerToRawData sectionHeader in
+                            let rsize := SizeOfRawData sectionHeader in
+                            let numSections := Z_to_nat (Zdiv (Word.unsigned rsize) block_size) in
+                             cons (rstart,rsize,copySection data (Word.unsigned rstart) (Word.unsigned rsize) numSections)
+                            (getExecutableBounds data (start+40) n')
+             end
+end.
+
+(* Finds location of section headers, then calls getExecutableBounds to get executable sections *)
+Definition getExecutableSections (data : list (list BYTE)) 
+                                 : list (DWORD * DWORD * list (list BYTE)) :=
+   let dosHeader := parseImageDosHeader data in
+   let ntHeader := derefImageNtHeader data (e_lfanew dosHeader) in
+   getExecutableBounds data (Z_of_nat((ptr_to_nat (e_lfanew dosHeader)) + 248))
+                                          (word_to_nat (NumberOfSections (FileHeader ntHeader)))
+.
 
 Close Scope vector_scope.
