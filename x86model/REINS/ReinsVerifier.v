@@ -79,37 +79,11 @@ Section BUILT_DFAS.
   (* In this section we will just assume the DFAs are all built;
      that is, non_cflow_dfa should be the result of "make_dfa non_cflow_parser" and
      similarly for dir_cflow_dfa and nacljmp_dfa *)
-  Variable non_cflow_p : parser (pair_t prefix_t instruction_t).
-  Variable dir_cflow_p : parser instruction_t.
-  Variable reinsjmp_nonIAT_mask : parser (pair_t instruction_t instruction_t).
+  Variable non_cflow_dfa : DFA.
+  Variable dir_cflow_dfa : DFA.
+  Variable reinsjmp_nonIAT_dfa : DFA.
+  Variable reinsjmp_IAT_dfa : DFA.
   Variable reinsjmp_IAT_mask : parser (pair_t instruction_t instruction_t).
-
-  Definition empty_dfa := {| dfa_num_states := 0%nat;
-                             dfa_states := nil;
-                             dfa_transition := nil;
-                             dfa_accepts := nil;
-                             dfa_rejects := nil |}.
-
-  Definition reinsjmp_nonIAT_dfa : DFA :=
-      match make_dfa reinsjmp_nonIAT_mask with
-      | None => empty_dfa
-      | Some x => x
-      end.
-  Definition reinsjmp_IAT_dfa : DFA :=
-      match make_dfa reinsjmp_IAT_mask with
-      | None => empty_dfa
-      | Some x => x
-      end.
-  Definition non_cflow_dfa : DFA :=
-      match make_dfa non_cflow_p with
-      | None => empty_dfa
-      | Some x => x
-      end.
-  Definition dir_cflow_dfa : DFA :=
-      match make_dfa dir_cflow_p with
-      | None => empty_dfa
-      | Some x => x
-      end.
 
   (* G.T.: may be a good idea to parametrize the DFA w.r.t. the ChunkSize;
      Google's verifier allows it either to be 16 or 32.
@@ -358,6 +332,17 @@ Section BUILT_DFAS.
 
 
 End BUILT_DFAS.
+
+Require Import CompiledDFAs.
+
+Definition checkProgram' (data : list (list int8)) : (bool * Int32Set.t) :=
+    checkProgram
+      non_cflow_dfa
+      dir_cflow_dfa
+      reinsjmp_nonIAT_dfa
+      reinsjmp_IAT_dfa
+      reinsjmp_IAT_mask
+      data.
 
 (*Definition ncflow := make_dfa non_cflow_parser.
 Definition dbranch := make_dfa (alts dir_cflow).
