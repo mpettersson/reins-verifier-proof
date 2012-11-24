@@ -82,8 +82,8 @@ Section BUILT_DFAS.
   Variable non_cflow_dfa : DFA.
   Variable dir_cflow_dfa : DFA.
   Variable reinsjmp_nonIAT_dfa : DFA.
-  Variable reinsjmp_IAT_dfa : DFA.
-  Variable reinsjmp_IAT_mask : parser (pair_t instruction_t instruction_t).
+  Variable reinsjmp_IAT_or_RET_dfa : DFA.
+  Variable reinsjmp_IAT_or_RET_mask : parser (pair_t instruction_t instruction_t).
 
   (* G.T.: may be a good idea to parametrize the DFA w.r.t. the ChunkSize;
      Google's verifier allows it either to be 16 or 32.
@@ -139,8 +139,8 @@ Section BUILT_DFAS.
 
 
   Definition extract_indirect_jmp bytes : option (option address) :=
-    let regexp_pair := parser2regexp reinsjmp_IAT_mask in
-    let ips := mkPS' (snd regexp_pair) (fst regexp_pair) (p2r_wf reinsjmp_IAT_mask _) in
+    let regexp_pair := parser2regexp reinsjmp_IAT_or_RET_mask in
+    let ips := mkPS' (snd regexp_pair) (fst regexp_pair) (p2r_wf reinsjmp_IAT_or_RET_mask _) in
     match (parseloop' ips bytes) with
     | Some ((_, JMP true true (Address_op addr) None), _) => Some (Some addr)
     | Some ((_, RET _ _), _) => Some None
@@ -148,8 +148,8 @@ Section BUILT_DFAS.
     end.
 
   Definition is_call bytes : bool :=
-    let regexp_pair := parser2regexp reinsjmp_IAT_mask in
-    let ips := mkPS' (snd regexp_pair) (fst regexp_pair) (p2r_wf reinsjmp_IAT_mask _) in
+    let regexp_pair := parser2regexp reinsjmp_IAT_or_RET_mask in
+    let ips := mkPS' (snd regexp_pair) (fst regexp_pair) (p2r_wf reinsjmp_IAT_or_RET_mask _) in
     match (parseloop' ips bytes) with
     | Some ((_, CALL _ _ _ _), _) => true
     | _ => false
@@ -176,10 +176,10 @@ Section BUILT_DFAS.
           | nil => process_buffer_aux loc m rest curr_res
           | _ =>
             match
-             (dfa_recognize 256 non_cflow_dfa       chunk,
-              dfa_recognize 256 dir_cflow_dfa       chunk,
-              dfa_recognize 256 reinsjmp_nonIAT_dfa chunk,
-              dfa_recognize 256 reinsjmp_IAT_dfa    chunk) with
+             (dfa_recognize 256 non_cflow_dfa              chunk,
+              dfa_recognize 256 dir_cflow_dfa              chunk,
+              dfa_recognize 256 reinsjmp_nonIAT_dfa        chunk,
+              dfa_recognize 256 reinsjmp_IAT_or_RET_dfa    chunk) with
 
             | (Some (len, remaining), None, None, None) => 
               process_buffer_aux (loc +32_n len) m (remaining::rest)
@@ -310,7 +310,7 @@ Section BUILT_DFAS.
    * - Static branches target low memory chunk boundaries (checkJmpTargets)
    * - Non-IAT computed jumps are masked (reinsjmp_nonIAT_mask)
    * - IAT computed jumps have return addr masked and actually target the iat
-   *     (reinsjmp_IAT_mask + checkIATAddresses)
+   *     (reinsjmp_IAT_or_RET_mask + checkIATAddresses)
    * - Call instructions end on a chunk bounary
    * - No trap instructions (will not parse)
    *)
@@ -340,8 +340,8 @@ Definition checkProgram' (data : list (list int8)) : (bool * Int32Set.t) :=
       non_cflow_dfa
       dir_cflow_dfa
       reinsjmp_nonIAT_dfa
-      reinsjmp_IAT_dfa
-      reinsjmp_IAT_mask
+      reinsjmp_IAT_or_RET_dfa
+      reinsjmp_IAT_or_RET_mask
       data.
 
 (*Definition ncflow := make_dfa non_cflow_parser.

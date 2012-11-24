@@ -199,7 +199,7 @@ Definition reins_nonIAT_MASK_p (r: register) : parser instruction_t :=
       %% instruction_t).
 
 (* Jumps that target the IAT must have the return address, [ESP], masked *)
-Definition reins_IAT_or_ret_MASK_p : parser instruction_t :=
+Definition reins_IAT_or_RET_MASK_p : parser instruction_t :=
     (* The masking AND is encoded as follows:
      * "10000001" -- 0x81 = (opcode) AND r/m32 imm32 (32 from prefix)
      * "00"       --      = Mod = 0: the first operand is a memory address
@@ -265,8 +265,8 @@ Definition reins_IAT_JMP_p : parser instruction_t :=
 Definition reinsjmp_nonIAT_p (r: register) : parser (pair_t instruction_t instruction_t) :=
     reins_nonIAT_MASK_p r $ (reins_nonIAT_JMP_p r |+| reins_nonIAT_CALL_p r).
 
-Definition reinsjmp_IAT_p : parser (pair_t instruction_t instruction_t) :=
-    reins_IAT_or_ret_MASK_p $ (reins_IAT_JMP_p |+| RET_p).
+Definition reinsjmp_IAT_or_RET_p : parser (pair_t instruction_t instruction_t) :=
+    reins_IAT_or_RET_MASK_p $ (reins_IAT_JMP_p |+| RET_p).
   
 
 Definition b8 := true::false::false::false::nil.
@@ -283,8 +283,8 @@ Definition reinsjmp_nonIAT_mask : parser (pair_t instruction_t instruction_t) :=
   alts (reinsjmp_nonIAT_p EAX :: reinsjmp_nonIAT_p ECX :: reinsjmp_nonIAT_p EDX :: reinsjmp_nonIAT_p EBX ::
   reinsjmp_nonIAT_p EBP :: reinsjmp_nonIAT_p ESI :: reinsjmp_nonIAT_p EDI :: nil).
 
-Definition reinsjmp_IAT_mask : parser (pair_t instruction_t instruction_t) :=
-    reinsjmp_IAT_p.
+Definition reinsjmp_IAT_or_RET_mask : parser (pair_t instruction_t instruction_t) :=
+    reinsjmp_IAT_or_RET_p.
 
   Fixpoint parseloop ps bytes := 
     match bytes with 
@@ -444,7 +444,7 @@ Definition reinsjmp_nonIAT_mask_instr (pfx1:prefix) (ins1:instr) (pfx2:prefix) (
 
 (* Note that this does not check whether the jmp through the IAT actually
  * targets the IAT. *)
-Definition reinsjmp_IAT_mask_instr (pfx1:prefix) (ins1:instr) (pfx2:prefix) (ins2:instr) :=
+Definition reinsjmp_IAT_or_RET_mask_instr (pfx1:prefix) (ins1:instr) (pfx2:prefix) (ins2:instr) :=
   no_prefix pfx1 && no_prefix pfx2 && 
   match ins1 with
     | AND true (Reg_op ESP) (Imm_op wd) => 
@@ -456,7 +456,7 @@ Definition reinsjmp_IAT_mask_instr (pfx1:prefix) (ins1:instr) (pfx2:prefix) (ins
     | _ => false
   end.
 
-Definition dfas := (make_dfa non_cflow_parser, make_dfa (alts dir_cflow), make_dfa reinsjmp_nonIAT_mask, make_dfa reinsjmp_IAT_mask).
+Definition dfas := (make_dfa non_cflow_parser, make_dfa (alts dir_cflow), make_dfa reinsjmp_nonIAT_mask, make_dfa reinsjmp_IAT_or_RET_mask).
 (* Extraction "tables.ml" dfas.*)
 
 

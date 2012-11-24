@@ -20,6 +20,6 @@ Open Scope nat_scope.
 Set Printing Depth 10000.
 
 Time Compute (make_dfa reinsjmp_nonIAT_mask).
-Time Compute (make_dfa reinsjmp_IAT_mask).
+Time Compute (make_dfa reinsjmp_IAT_or_RET_mask).
 Time Compute (make_dfa dir_cflow_parser).
 Time Compute (make_dfa non_cflow_parser).
