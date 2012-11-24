@@ -548,6 +548,10 @@ module type Coq_OrderedType =
 
 module Word : 
  sig 
+  type wint =
+    z
+    (* singleton inductive, whose constructor was mkint *)
+  
   val wordsize : int -> int
   
   val modulus : int -> z
@@ -572,15 +576,11 @@ module Word :
   
   val swap_comparison : comparison -> comparison
   
-  type int =
-    z
-    (* singleton inductive, whose constructor was mkint *)
+  val int_rect : int -> (z -> __ -> 'a1) -> wint -> 'a1
   
-  val int_rect : int -> (z -> __ -> 'a1) -> int -> 'a1
+  val int_rec : int -> (z -> __ -> 'a1) -> wint -> 'a1
   
-  val int_rec : int -> (z -> __ -> 'a1) -> int -> 'a1
-  
-  val intval : int -> int -> z
+  val intval : int -> wint -> z
   
   val max_unsigned : int -> z
   
@@ -588,53 +588,53 @@ module Word :
   
   val min_signed : int -> z
   
-  val unsigned : int -> int -> z
+  val unsigned : int -> wint -> z
   
-  val signed : int -> int -> z
+  val signed : int -> wint -> z
   
-  val repr : int -> z -> int
+  val repr : int -> z -> wint
   
-  val zero : int -> int
+  val zero : int -> wint
   
-  val one : int -> int
+  val one : int -> wint
   
-  val mone : int -> int
+  val mone : int -> wint
   
-  val eq_dec : int -> int -> int -> bool
+  val eq_dec : int -> wint -> wint -> bool
   
-  val eq : int -> int -> int -> bool
+  val eq : int -> wint -> wint -> bool
   
-  val lt : int -> int -> int -> bool
+  val lt : int -> wint -> wint -> bool
   
-  val ltu : int -> int -> int -> bool
+  val ltu : int -> wint -> wint -> bool
   
-  val lequ : int -> int -> int -> bool
+  val lequ : int -> wint -> wint -> bool
   
-  val neg : int -> int -> int
+  val neg : int -> wint -> wint
   
-  val zero_ext : int -> z -> int -> int
+  val zero_ext : int -> z -> wint -> wint
   
-  val sign_ext : int -> z -> int -> int
+  val sign_ext : int -> z -> wint -> wint
   
-  val add : int -> int -> int -> int
+  val add : int -> wint -> wint -> wint
   
-  val sub : int -> int -> int -> int
+  val sub : int -> wint -> wint -> wint
   
-  val mul : int -> int -> int -> int
+  val mul : int -> wint -> wint -> wint
   
   val coq_Zdiv_round : z -> z -> z
   
   val coq_Zmod_round : z -> z -> z
   
-  val divs : int -> int -> int -> int
+  val divs : int -> wint -> wint -> wint
   
-  val mods : int -> int -> int -> int
+  val mods : int -> wint -> wint -> wint
   
-  val divu : int -> int -> int -> int
+  val divu : int -> wint -> wint -> wint
   
-  val modu : int -> int -> int -> int
+  val modu : int -> wint -> wint -> wint
   
-  val bool_to_int : int -> bool -> int
+  val bool_to_int : int -> bool -> wint
   
   val unsigned_overflow : int -> z -> z -> bool
   
@@ -646,9 +646,9 @@ module Word :
   
   val signed_overflow_with_borrow : int -> z -> z -> bool -> bool
   
-  val is_zero : int -> int -> bool
+  val is_zero : int -> wint -> bool
   
-  val is_signed : int -> int -> bool
+  val is_signed : int -> wint -> bool
   
   val coq_Z_shift_add : bool -> z -> z
   
@@ -658,37 +658,37 @@ module Word :
   
   val coq_Z_of_bits : int -> (z -> bool) -> z
   
-  val bitwise_binop : int -> (bool -> bool -> bool) -> int -> int -> int
+  val bitwise_binop : int -> (bool -> bool -> bool) -> wint -> wint -> wint
   
-  val coq_and : int -> int -> int -> int
+  val coq_and : int -> wint -> wint -> wint
   
-  val coq_or : int -> int -> int -> int
+  val coq_or : int -> wint -> wint -> wint
   
-  val xor : int -> int -> int -> int
+  val xor : int -> wint -> wint -> wint
   
-  val not : int -> int -> int
+  val not : int -> wint -> wint
   
-  val shl : int -> int -> int -> int
+  val shl : int -> wint -> wint -> wint
   
-  val shru : int -> int -> int -> int
+  val shru : int -> wint -> wint -> wint
   
-  val shr : int -> int -> int -> int
+  val shr : int -> wint -> wint -> wint
   
-  val shrx : int -> int -> int -> int
+  val shrx : int -> wint -> wint -> wint
   
-  val shr_carry : int -> int -> int -> int
+  val shr_carry : int -> wint -> wint -> wint
   
-  val rol : int -> int -> int -> int
+  val rol : int -> wint -> wint -> wint
   
-  val ror : int -> int -> int -> int
+  val ror : int -> wint -> wint -> wint
   
-  val rolm : int -> int -> int -> int -> int
+  val rolm : int -> wint -> wint -> wint -> wint
   
   val coq_Z_one_bits : int -> z -> z -> z list
   
-  val one_bits : int -> int -> int list
+  val one_bits : int -> wint -> wint list
   
-  val is_power2 : int -> int -> int option
+  val is_power2 : int -> wint -> wint option
   
   type rlw_state =
   | RLW_S0
@@ -712,31 +712,31 @@ module Word :
   
   val is_rlw_mask_rec : int -> rlw_state -> z -> bool
   
-  val is_rlw_mask : int -> int -> bool
+  val is_rlw_mask : int -> wint -> bool
   
-  val cmp : int -> comparison -> int -> int -> bool
+  val cmp : int -> comparison -> wint -> wint -> bool
   
-  val cmpu : int -> comparison -> int -> int -> bool
+  val cmpu : int -> comparison -> wint -> wint -> bool
   
-  val notbool : int -> int -> int
+  val notbool : int -> wint -> wint
   
   val check_equal_on_range :
-    int -> (int -> int) -> (int -> int) -> int -> bool
+    int -> (wint -> wint) -> (wint -> wint) -> int -> bool
   
   val powerserie : z list -> z
   
-  val int_of_one_bits : int -> int list -> int
+  val int_of_one_bits : int -> wint list -> wint
  end
 
-type int8 = Word.int
+type int8 = Word.wint
 
-type int16 = Word.int
+type int16 = Word.wint
 
-type int32 = Word.int
+type int32 = Word.wint
 
 module Int32_OT : 
  sig 
-  type t = Word.int
+  type t = Word.wint
   
   val compare : t -> t -> t compare0
   
@@ -2549,16 +2549,16 @@ module X86_PARSER :
  end
 
 val w32add :
-  Word.int
+  Word.wint
   ->
-  Word.int
+  Word.wint
   ->
-  Word.int
+  Word.wint
 
 val int32_lequ_bool :
-  Word.int
+  Word.wint
   ->
-  Word.int
+  Word.wint
   ->
   bool
 
@@ -2579,7 +2579,7 @@ val lowMemCutoff :
   z
 
 val safeMask :
-  Word.int
+  Word.wint
 
 val int2bools_aux :
   (z
@@ -2594,7 +2594,7 @@ val int2bools_aux :
 val int_to_bools :
   int
   ->
-  Word.int
+  Word.wint
   ->
   bool
   list
@@ -4931,22 +4931,22 @@ val non_cflow_dfa : X86_PARSER.X86_BASE_PARSER.coq_DFA
 
 module New_Int32_OT : 
  sig 
-  type t = Word.int
+  type t = Word.wint
   
-  val eq_dec : Word.int -> Word.int -> bool
+  val eq_dec : Word.wint -> Word.wint -> bool
   
-  val compare : Word.int -> Word.int -> comparison
+  val compare : Word.wint -> Word.wint -> comparison
  end
 
 module Int32Set : 
  sig 
   module Raw : 
    sig 
-    type elt = Word.int
+    type elt = Word.wint
     
     type tree =
     | Leaf
-    | Node of tree * Word.int * tree * Z_as_Int.int
+    | Node of tree * Word.wint * tree * Z_as_Int.int
     
     type t = tree
     
@@ -4958,17 +4958,17 @@ module Int32Set :
     
     val is_empty : tree -> bool
     
-    val mem : Word.int -> tree -> bool
+    val mem : Word.wint -> tree -> bool
     
-    val singleton : Word.int -> tree
+    val singleton : Word.wint -> tree
     
-    val create : tree -> Word.int -> tree -> tree
+    val create : tree -> Word.wint -> tree -> tree
     
-    val assert_false : tree -> Word.int -> tree -> tree
+    val assert_false : tree -> Word.wint -> tree -> tree
     
-    val bal : t -> Word.int -> t -> tree
+    val bal : t -> Word.wint -> t -> tree
     
-    val add : Word.int -> tree -> tree
+    val add : Word.wint -> tree -> tree
     
     val join : tree -> elt -> t -> t
     
@@ -4976,13 +4976,13 @@ module Int32Set :
     
     val merge : tree -> tree -> tree
     
-    val remove : Word.int -> tree -> tree
+    val remove : Word.wint -> tree -> tree
     
-    val min_elt : tree -> Word.int option
+    val min_elt : tree -> Word.wint option
     
-    val max_elt : tree -> Word.int option
+    val max_elt : tree -> Word.wint option
     
-    val choose : tree -> Word.int option
+    val choose : tree -> Word.wint option
     
     val concat : tree -> tree -> tree
     
@@ -4994,7 +4994,7 @@ module Int32Set :
     
     val t_right : triple -> t
     
-    val split : Word.int -> tree -> triple
+    val split : Word.wint -> tree -> triple
     
     val inter : tree -> tree -> tree
     
@@ -5002,9 +5002,9 @@ module Int32Set :
     
     val union : tree -> tree -> tree
     
-    val elements_aux : Word.int list -> t -> Word.int list
+    val elements_aux : Word.wint list -> t -> Word.wint list
     
-    val elements : t -> Word.int list
+    val elements : t -> Word.wint list
     
     val filter_acc : (elt -> bool) -> tree -> tree -> tree
     
@@ -5020,9 +5020,9 @@ module Int32Set :
     
     val fold : (elt -> 'a1 -> 'a1) -> t -> 'a1 -> 'a1
     
-    val subsetl : (t -> bool) -> Word.int -> tree -> bool
+    val subsetl : (t -> bool) -> Word.wint -> tree -> bool
     
-    val subsetr : (t -> bool) -> Word.int -> tree -> bool
+    val subsetr : (t -> bool) -> Word.wint -> tree -> bool
     
     val subset : tree -> tree -> bool
     
@@ -5033,7 +5033,7 @@ module Int32Set :
     val cons : tree -> enumeration -> enumeration
     
     val compare_more :
-      Word.int -> (enumeration -> comparison) -> enumeration -> comparison
+      Word.wint -> (enumeration -> comparison) -> enumeration -> comparison
     
     val compare_cont :
       tree -> (enumeration -> comparison) -> enumeration -> comparison
@@ -5044,9 +5044,9 @@ module Int32Set :
     
     val equal : tree -> tree -> bool
     
-    val ltb_tree : Word.int -> tree -> bool
+    val ltb_tree : Word.wint -> tree -> bool
     
-    val gtb_tree : Word.int -> tree -> bool
+    val gtb_tree : Word.wint -> tree -> bool
     
     val isok : tree -> bool
     
@@ -5056,97 +5056,97 @@ module Int32Set :
        sig 
         module OTF : 
          sig 
-          type t = Word.int
+          type t = Word.wint
           
-          val compare : Word.int -> Word.int -> comparison
+          val compare : Word.wint -> Word.wint -> comparison
           
-          val eq_dec : Word.int -> Word.int -> bool
+          val eq_dec : Word.wint -> Word.wint -> bool
          end
         
         module TO : 
          sig 
-          type t = Word.int
+          type t = Word.wint
           
-          val compare : Word.int -> Word.int -> comparison
+          val compare : Word.wint -> Word.wint -> comparison
           
-          val eq_dec : Word.int -> Word.int -> bool
+          val eq_dec : Word.wint -> Word.wint -> bool
          end
        end
       
-      val eq_dec : Word.int -> Word.int -> bool
+      val eq_dec : Word.wint -> Word.wint -> bool
       
-      val lt_dec : Word.int -> Word.int -> bool
+      val lt_dec : Word.wint -> Word.wint -> bool
       
-      val eqb : Word.int -> Word.int -> bool
+      val eqb : Word.wint -> Word.wint -> bool
      end
     
     type coq_R_bal =
-    | R_bal_0 of t * Word.int * t
-    | R_bal_1 of t * Word.int * t * tree * Word.int * tree * Z_as_Int.int
-    | R_bal_2 of t * Word.int * t * tree * Word.int * tree * Z_as_Int.int
-    | R_bal_3 of t * Word.int * t * tree * Word.int * tree * Z_as_Int.int
-       * tree * Word.int * tree * Z_as_Int.int
-    | R_bal_4 of t * Word.int * t
-    | R_bal_5 of t * Word.int * t * tree * Word.int * tree * Z_as_Int.int
-    | R_bal_6 of t * Word.int * t * tree * Word.int * tree * Z_as_Int.int
-    | R_bal_7 of t * Word.int * t * tree * Word.int * tree * Z_as_Int.int
-       * tree * Word.int * tree * Z_as_Int.int
-    | R_bal_8 of t * Word.int * t
+    | R_bal_0 of t * Word.wint * t
+    | R_bal_1 of t * Word.wint * t * tree * Word.wint * tree * Z_as_Int.int
+    | R_bal_2 of t * Word.wint * t * tree * Word.wint * tree * Z_as_Int.int
+    | R_bal_3 of t * Word.wint * t * tree * Word.wint * tree * Z_as_Int.int
+       * tree * Word.wint * tree * Z_as_Int.int
+    | R_bal_4 of t * Word.wint * t
+    | R_bal_5 of t * Word.wint * t * tree * Word.wint * tree * Z_as_Int.int
+    | R_bal_6 of t * Word.wint * t * tree * Word.wint * tree * Z_as_Int.int
+    | R_bal_7 of t * Word.wint * t * tree * Word.wint * tree * Z_as_Int.int
+       * tree * Word.wint * tree * Z_as_Int.int
+    | R_bal_8 of t * Word.wint * t
     
     type coq_R_remove_min =
     | R_remove_min_0 of tree * elt * t
-    | R_remove_min_1 of tree * elt * t * tree * Word.int * tree
+    | R_remove_min_1 of tree * elt * t * tree * Word.wint * tree
        * Z_as_Int.int * (t * elt) * coq_R_remove_min * t * elt
     
     type coq_R_merge =
     | R_merge_0 of tree * tree
-    | R_merge_1 of tree * tree * tree * Word.int * tree * Z_as_Int.int
-    | R_merge_2 of tree * tree * tree * Word.int * tree * Z_as_Int.int * 
-       tree * Word.int * tree * Z_as_Int.int * t * elt
+    | R_merge_1 of tree * tree * tree * Word.wint * tree * Z_as_Int.int
+    | R_merge_2 of tree * tree * tree * Word.wint * tree * Z_as_Int.int * 
+       tree * Word.wint * tree * Z_as_Int.int * t * elt
     
     type coq_R_min_elt =
     | R_min_elt_0 of tree
-    | R_min_elt_1 of tree * tree * Word.int * tree * Z_as_Int.int
-    | R_min_elt_2 of tree * tree * Word.int * tree * Z_as_Int.int * tree
-       * Word.int * tree * Z_as_Int.int * Word.int option * coq_R_min_elt
+    | R_min_elt_1 of tree * tree * Word.wint * tree * Z_as_Int.int
+    | R_min_elt_2 of tree * tree * Word.wint * tree * Z_as_Int.int * tree
+       * Word.wint * tree * Z_as_Int.int * Word.wint option * coq_R_min_elt
     
     type coq_R_max_elt =
     | R_max_elt_0 of tree
-    | R_max_elt_1 of tree * tree * Word.int * tree * Z_as_Int.int
-    | R_max_elt_2 of tree * tree * Word.int * tree * Z_as_Int.int * tree
-       * Word.int * tree * Z_as_Int.int * Word.int option * coq_R_max_elt
+    | R_max_elt_1 of tree * tree * Word.wint * tree * Z_as_Int.int
+    | R_max_elt_2 of tree * tree * Word.wint * tree * Z_as_Int.int * tree
+       * Word.wint * tree * Z_as_Int.int * Word.wint option * coq_R_max_elt
     
     type coq_R_concat =
     | R_concat_0 of tree * tree
-    | R_concat_1 of tree * tree * tree * Word.int * tree * Z_as_Int.int
-    | R_concat_2 of tree * tree * tree * Word.int * tree * Z_as_Int.int
-       * tree * Word.int * tree * Z_as_Int.int * t * elt
+    | R_concat_1 of tree * tree * tree * Word.wint * tree * Z_as_Int.int
+    | R_concat_2 of tree * tree * tree * Word.wint * tree * Z_as_Int.int
+       * tree * Word.wint * tree * Z_as_Int.int * t * elt
     
     type coq_R_inter =
     | R_inter_0 of tree * tree
-    | R_inter_1 of tree * tree * tree * Word.int * tree * Z_as_Int.int
-    | R_inter_2 of tree * tree * tree * Word.int * tree * Z_as_Int.int * 
-       tree * Word.int * tree * Z_as_Int.int * t * bool * t * tree
+    | R_inter_1 of tree * tree * tree * Word.wint * tree * Z_as_Int.int
+    | R_inter_2 of tree * tree * tree * Word.wint * tree * Z_as_Int.int * 
+       tree * Word.wint * tree * Z_as_Int.int * t * bool * t * tree
        * coq_R_inter * tree * coq_R_inter
-    | R_inter_3 of tree * tree * tree * Word.int * tree * Z_as_Int.int * 
-       tree * Word.int * tree * Z_as_Int.int * t * bool * t * tree
+    | R_inter_3 of tree * tree * tree * Word.wint * tree * Z_as_Int.int * 
+       tree * Word.wint * tree * Z_as_Int.int * t * bool * t * tree
        * coq_R_inter * tree * coq_R_inter
     
     type coq_R_diff =
     | R_diff_0 of tree * tree
-    | R_diff_1 of tree * tree * tree * Word.int * tree * Z_as_Int.int
-    | R_diff_2 of tree * tree * tree * Word.int * tree * Z_as_Int.int * 
-       tree * Word.int * tree * Z_as_Int.int * t * bool * t * tree
+    | R_diff_1 of tree * tree * tree * Word.wint * tree * Z_as_Int.int
+    | R_diff_2 of tree * tree * tree * Word.wint * tree * Z_as_Int.int * 
+       tree * Word.wint * tree * Z_as_Int.int * t * bool * t * tree
        * coq_R_diff * tree * coq_R_diff
-    | R_diff_3 of tree * tree * tree * Word.int * tree * Z_as_Int.int * 
-       tree * Word.int * tree * Z_as_Int.int * t * bool * t * tree
+    | R_diff_3 of tree * tree * tree * Word.wint * tree * Z_as_Int.int * 
+       tree * Word.wint * tree * Z_as_Int.int * t * bool * t * tree
        * coq_R_diff * tree * coq_R_diff
     
     type coq_R_union =
     | R_union_0 of tree * tree
-    | R_union_1 of tree * tree * tree * Word.int * tree * Z_as_Int.int
-    | R_union_2 of tree * tree * tree * Word.int * tree * Z_as_Int.int * 
-       tree * Word.int * tree * Z_as_Int.int * t * bool * t * tree
+    | R_union_1 of tree * tree * tree * Word.wint * tree * Z_as_Int.int
+    | R_union_2 of tree * tree * tree * Word.wint * tree * Z_as_Int.int * 
+       tree * Word.wint * tree * Z_as_Int.int * t * bool * t * tree
        * coq_R_union * tree * coq_R_union
     
     module L : 
@@ -5157,28 +5157,28 @@ module Int32Set :
          sig 
           module OTF : 
            sig 
-            type t = Word.int
+            type t = Word.wint
             
-            val compare : Word.int -> Word.int -> comparison
+            val compare : Word.wint -> Word.wint -> comparison
             
-            val eq_dec : Word.int -> Word.int -> bool
+            val eq_dec : Word.wint -> Word.wint -> bool
            end
           
           module TO : 
            sig 
-            type t = Word.int
+            type t = Word.wint
             
-            val compare : Word.int -> Word.int -> comparison
+            val compare : Word.wint -> Word.wint -> comparison
             
-            val eq_dec : Word.int -> Word.int -> bool
+            val eq_dec : Word.wint -> Word.wint -> bool
            end
          end
         
-        val eq_dec : Word.int -> Word.int -> bool
+        val eq_dec : Word.wint -> Word.wint -> bool
         
-        val lt_dec : Word.int -> Word.int -> bool
+        val lt_dec : Word.wint -> Word.wint -> bool
         
-        val eqb : Word.int -> Word.int -> bool
+        val eqb : Word.wint -> Word.wint -> bool
        end
      end
     
@@ -5187,14 +5187,14 @@ module Int32Set :
   
   module E : 
    sig 
-    type t = Word.int
+    type t = Word.wint
     
-    val compare : Word.int -> Word.int -> comparison
+    val compare : Word.wint -> Word.wint -> comparison
     
-    val eq_dec : Word.int -> Word.int -> bool
+    val eq_dec : Word.wint -> Word.wint -> bool
    end
   
-  type elt = Word.int
+  type elt = Word.wint
   
   type t_ =
     Raw.t
