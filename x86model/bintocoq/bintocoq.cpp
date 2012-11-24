@@ -21,6 +21,7 @@ int main(int argc, char *argv[]) {
 	ofstream outFile;
 	outFile.open("out.v");
 	outFile << "Require Import Coq.Lists.List.\n";
+	outFile << "Require Import ReinsVerifier.\n";
 	outFile << "Require Import ZArith.\n";
 	outFile << "Require Import Bits.\n";
 	outFile << "Require Import PETraversal.\n\n";
@@ -67,5 +68,6 @@ int main(int argc, char *argv[]) {
 	outFile << "::nil.\n\n";
 
 	outFile << "Definition bytes := zlstoils zs.\n\n";
+	outFile << "Compute checkProgram' bytes.\n\n";
 	outFile.close();
 }
