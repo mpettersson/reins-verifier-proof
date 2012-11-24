@@ -36,21 +36,38 @@ Hint Constructors in_parser.
 
 Import ABSTRACT_MAKE_DFA.
 
-Lemma nacl_jmp_parser_splits' : 
+Lemma reinsjmp_nonIAT_parser_splits' : 
   forall s v, 
-    in_parser (alts nacljmp_mask) (flat_map byte_explode s) v -> 
+    in_parser reinsjmp_nonIAT_mask (flat_map byte_explode s) v -> 
     exists s1, exists s2, exists r,
       r <> ESP /\ 
       flat_map byte_explode s = s1 ++ s2 /\
-      in_parser (nacl_MASK_p r) s1 (fst v) /\ 
-      in_parser (nacl_JMP_p r |+| nacl_CALL_p r) s2 (snd v).
+      in_parser (reins_nonIAT_MASK_p r) s1 (fst v) /\ 
+      in_parser (reins_nonIAT_JMP_p r |+| reins_nonIAT_CALL_p r) s2 (snd v).
 Proof.
-  unfold nacljmp_mask. unfold nacljmp_p. simpl ; unfold never. intros. 
+  unfold reinsjmp_nonIAT_mask. unfold reinsjmp_nonIAT_p. simpl ; unfold never. intros. 
   repeat pinv ; simpl ; 
   econstructor ; econstructor ; econstructor ; repeat split ; eauto ; try congruence ;
   match goal with 
-    | [ H : in_parser (nacl_JMP_p _) _ _ |- _ ] => eapply Alt_left_pi
-    | [ H : in_parser (nacl_CALL_p _) _ _ |- _ ] => eapply Alt_right_pi
+    | [ H : in_parser (reins_nonIAT_JMP_p _) _ _ |- _ ] => eapply Alt_left_pi
+    | [ H : in_parser (reins_nonIAT_CALL_p _) _ _ |- _ ] => eapply Alt_right_pi
+  end ; auto.
+Qed.
+
+Lemma reinsjmp_IAT_or_RET_parser_splits' : 
+  forall s v, 
+    in_parser reinsjmp_IAT_or_RET_mask (flat_map byte_explode s) v -> 
+    exists s1, exists s2,
+      flat_map byte_explode s = s1 ++ s2 /\
+      in_parser (reins_IAT_or_RET_or_ret_MASK_p) s1 (fst v) /\ 
+      in_parser (reins_IAT_JMP_p |+| RET_p) s2 (snd v).
+Proof.
+  unfold reinsjmp_IAT_or_RET_mask. unfold reinsjmp_IAT_or_RET_p. simpl ; unfold never. intros. 
+  repeat pinv ; simpl ; 
+  econstructor ; econstructor ; econstructor ; repeat split ; eauto ; try congruence ;
+  match goal with 
+    | [ H : in_parser (reins_IAT_JMP_p) _ _ |- _ ] => eapply Alt_left_pi
+    | [ H : in_parser (RET_p) _ _ |- _ ] => eapply Alt_right_pi
   end ; auto.
 Qed.
 
