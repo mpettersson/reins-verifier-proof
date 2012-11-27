@@ -548,10 +548,6 @@ module type Coq_OrderedType =
 
 module Word : 
  sig 
-  type wint =
-    z
-    (* singleton inductive, whose constructor was mkint *)
-  
   val wordsize : int -> int
   
   val modulus : int -> z
@@ -576,9 +572,13 @@ module Word :
   
   val swap_comparison : comparison -> comparison
   
-  val int_rect : int -> (z -> __ -> 'a1) -> wint -> 'a1
+  type wint =
+    z
+    (* singleton inductive, whose constructor was mkint *)
   
-  val int_rec : int -> (z -> __ -> 'a1) -> wint -> 'a1
+  val wint_rect : int -> (z -> __ -> 'a1) -> wint -> 'a1
+  
+  val wint_rec : int -> (z -> __ -> 'a1) -> wint -> 'a1
   
   val intval : int -> wint -> z
   
@@ -3191,12 +3191,6 @@ val dword_to_nat :
   ->
   int
 
-val ptr_to_nat :
-  'a1
-  ptr
-  ->
-  int
-
 val dword_to_Z :
   dWORD
   ->
@@ -4189,9 +4183,24 @@ module MakeRaw :
      * X.t
      * tree
      * I.int
-  | R_bal_6 of t * X.t * t * tree * X.t * tree * I.int
-  | R_bal_7 of t * X.t * t * tree * X.t * tree * I.int * tree * X.t * 
-     tree * I.int
+  | R_bal_6 of t
+     * X.t
+     * t
+     * tree
+     * X.t
+     * tree
+     * I.int
+  | R_bal_7 of t
+     * X.t
+     * t
+     * tree
+     * X.t
+     * tree
+     * I.int
+     * tree
+     * X.t
+     * tree
+     * I.int
   | R_bal_8 of t * X.t * t
   
   type coq_R_remove_min =
@@ -5101,20 +5110,22 @@ module Int32Set :
     type coq_R_merge =
     | R_merge_0 of tree * tree
     | R_merge_1 of tree * tree * tree * Word.wint * tree * Z_as_Int.int
-    | R_merge_2 of tree * tree * tree * Word.wint * tree * Z_as_Int.int * 
-       tree * Word.wint * tree * Z_as_Int.int * t * elt
+    | R_merge_2 of tree * tree * tree * Word.wint * tree * Z_as_Int.int
+       * tree * Word.wint * tree * Z_as_Int.int * t * elt
     
     type coq_R_min_elt =
     | R_min_elt_0 of tree
     | R_min_elt_1 of tree * tree * Word.wint * tree * Z_as_Int.int
-    | R_min_elt_2 of tree * tree * Word.wint * tree * Z_as_Int.int * tree
-       * Word.wint * tree * Z_as_Int.int * Word.wint option * coq_R_min_elt
+    | R_min_elt_2 of tree * tree * Word.wint * tree * Z_as_Int.int * 
+       tree * Word.wint * tree * Z_as_Int.int * Word.wint option
+       * coq_R_min_elt
     
     type coq_R_max_elt =
     | R_max_elt_0 of tree
     | R_max_elt_1 of tree * tree * Word.wint * tree * Z_as_Int.int
-    | R_max_elt_2 of tree * tree * Word.wint * tree * Z_as_Int.int * tree
-       * Word.wint * tree * Z_as_Int.int * Word.wint option * coq_R_max_elt
+    | R_max_elt_2 of tree * tree * Word.wint * tree * Z_as_Int.int * 
+       tree * Word.wint * tree * Z_as_Int.int * Word.wint option
+       * coq_R_max_elt
     
     type coq_R_concat =
     | R_concat_0 of tree * tree
@@ -5125,11 +5136,11 @@ module Int32Set :
     type coq_R_inter =
     | R_inter_0 of tree * tree
     | R_inter_1 of tree * tree * tree * Word.wint * tree * Z_as_Int.int
-    | R_inter_2 of tree * tree * tree * Word.wint * tree * Z_as_Int.int * 
-       tree * Word.wint * tree * Z_as_Int.int * t * bool * t * tree
+    | R_inter_2 of tree * tree * tree * Word.wint * tree * Z_as_Int.int
+       * tree * Word.wint * tree * Z_as_Int.int * t * bool * t * tree
        * coq_R_inter * tree * coq_R_inter
-    | R_inter_3 of tree * tree * tree * Word.wint * tree * Z_as_Int.int * 
-       tree * Word.wint * tree * Z_as_Int.int * t * bool * t * tree
+    | R_inter_3 of tree * tree * tree * Word.wint * tree * Z_as_Int.int
+       * tree * Word.wint * tree * Z_as_Int.int * t * bool * t * tree
        * coq_R_inter * tree * coq_R_inter
     
     type coq_R_diff =
@@ -5145,8 +5156,8 @@ module Int32Set :
     type coq_R_union =
     | R_union_0 of tree * tree
     | R_union_1 of tree * tree * tree * Word.wint * tree * Z_as_Int.int
-    | R_union_2 of tree * tree * tree * Word.wint * tree * Z_as_Int.int * 
-       tree * Word.wint * tree * Z_as_Int.int * t * bool * t * tree
+    | R_union_2 of tree * tree * tree * Word.wint * tree * Z_as_Int.int
+       * tree * Word.wint * tree * Z_as_Int.int * t * bool * t * tree
        * coq_R_union * tree * coq_R_union
     
     module L : 
