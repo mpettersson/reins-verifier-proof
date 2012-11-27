@@ -11,11 +11,28 @@ let rec read_bytes (n : int) (file : in_channel) : int list =
       | Some byte -> byte :: read_bytes (n-1) file
       | None -> [];;
 
-let rec read_bin (n : int) (file : in_channel) : (int list) list =
+(* This version reads the file 'backwards', because all the io is
+ * deferred until the recursion resolves itself (i.e. the base case
+ * is the first read... I have no idea why... *)
+(*let rec read_bin (n : int) (file : in_channel) : (int list) list =
+  print_string "reading...\n";
   if (n-3072) <= 0 then
     [read_bytes 3072 file]
   else
-    (read_bytes 3072 file) :: read_bin (n-3072) file;;
+    (read_bytes 3072 file) :: read_bin (n-3072) file;;*)
+
+let read_bin (n: int) (file : in_channel) : (int list) list =
+  let s = if n mod 3072 == 0 then
+            n / 3072
+          else
+            (n / 3072) + 1
+  in
+  let l = Array.make s [] in
+  for i=0 to (s-1) do
+    l.(i) <- read_bytes 3072 file;
+  done;
+  Array.to_list l;;
+
 
 let rec print_list' (l : int list) =
   match l with
@@ -32,6 +49,28 @@ let rec print_matr' (l : (int list) list) =
 
 let print_matr (l : (int list) list) =
   print_string "["; print_matr' l; print_string "]\n";;
+
+let print_dos d =
+  print_int (word_to_nat (e_magic     d)); print_newline ();
+  print_int (word_to_nat (e_cblp      d)); print_newline ();
+  print_int (word_to_nat (e_cp        d)); print_newline ();
+  print_int (word_to_nat (e_crlc      d)); print_newline ();
+  print_int (word_to_nat (e_cparhdr   d)); print_newline ();
+  print_int (word_to_nat (e_minalloc  d)); print_newline ();
+  print_int (word_to_nat (e_maxalloc  d)); print_newline ();
+  print_int (word_to_nat (e_ss        d)); print_newline ();
+  print_int (word_to_nat (e_sp        d)); print_newline ();
+  print_int (word_to_nat (e_csum      d)); print_newline ();
+  print_int (word_to_nat (e_ip        d)); print_newline ();
+  print_int (word_to_nat (e_cs        d)); print_newline ();
+  print_int (word_to_nat (e_lfarlc    d)); print_newline ();
+  print_int (word_to_nat (e_ovno      d)); print_newline ();
+  print_list (List.map word_to_nat (vtolist 4 (e_res d)));
+  print_int (word_to_nat (e_oemid     d)); print_newline ();
+  print_int (word_to_nat (e_oeminfo   d)); print_newline ();
+  print_list (List.map word_to_nat (vtolist 10 (e_res2 d)));
+  print_int (ptr_to_nat  (e_lfanew    d)); print_newline ();;
+
 
 let main () =
   let file = open_in Sys.argv.(1) in
