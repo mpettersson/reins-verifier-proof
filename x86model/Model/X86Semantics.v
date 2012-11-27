@@ -58,12 +58,12 @@ Module X86_MACHINE.
     flags_reg : fmap flag int1 ; 
     control_regs : fmap control_register int32 ; 
     debug_regs : fmap debug_register int32 ; 
-    pc_reg : int size32 
+    pc_reg : wint size32 
   }.
   Definition mach_state := mach.
 
-  Definition get_location s (l:loc s) (m:mach_state) : int s := 
-    match l in loc s' return int s' with 
+  Definition get_location s (l:loc s) (m:mach_state) : wint s := 
+    match l in loc s' return wint s' with 
       | reg_loc r => look (gp_regs m) r
       | seg_reg_start_loc r => look (seg_regs_starts m) r
       | seg_reg_limit_loc r => look (seg_regs_limits m) r
@@ -143,8 +143,8 @@ Module X86_MACHINE.
        pc_reg := v
     |}.
 
-  Definition set_location s (l:loc s) (v:int s) m := 
-    match l in loc s' return int s' -> mach_state with 
+  Definition set_location s (l:loc s) (v:wint s) m := 
+    match l in loc s' return wint s' -> mach_state with 
       | reg_loc r => fun v => set_gp_regs r v m
       | seg_reg_start_loc r => fun v => set_seg_regs_starts r v m
       | seg_reg_limit_loc r => fun v => set_seg_regs_limits r v m
@@ -186,7 +186,7 @@ Module X86_Decode.
                 (ps_reg s r, ts').
 
   Definition load_Z s (i:Z) := fresh (load_imm_rtl (@Word.repr s i)).
-  Definition load_int s (i:int s) := fresh (load_imm_rtl i).
+  Definition load_int s (i:wint s) := fresh (load_imm_rtl i).
   Definition arith s b (r1 r2:pseudo_reg s) := fresh (arith_rtl b r1 r2).
   Definition test s t (r1 r2:pseudo_reg s) := fresh (test_rtl t r1 r2).
   Definition load_reg (r:register) := fresh (get_loc_rtl (reg_loc r)).
@@ -2391,7 +2391,7 @@ Definition conv_POPF pre :=
      end).
 
   (*
-  Definition conv_REP_generic (zfval: option Z) (oldpc_val: Word.int size32) :=
+  Definition conv_REP_generic (zfval: option Z) (oldpc_val: Word.wint size32) :=
     oldecx <- load_reg ECX;
     one <- load_Z _ 1;
     newecx <- arith sub_op oldecx one;

@@ -120,7 +120,7 @@ Ltac elim_int32_eq :=
   repeat match goal with
     | [H: ?X = ?Y |- _] =>
       match type of X with
-        | int 31 => assert (unsigned X = unsigned Y) by congruence; clear H
+        | wint 31 => assert (unsigned X = unsigned Y) by congruence; clear H
         | _ => idtac
       end
   end.

@@ -26,7 +26,7 @@ Definition size4 := 3.
 Definition size8 := 7.
 Definition size16 := 15.
 Definition size32 := 31.
-Definition int n := Word.int n.
+Definition wint n := Word.wint n.
 
 Module Type MACHINE_SIG.
   (** We abstract over locations which include things like registers, flags, the pc, 
@@ -41,8 +41,8 @@ Module Type MACHINE_SIG.
   (** We assume some type for the machine state *)
   Variable mach_state : Type.
   (** And operations for reading/writing locations *)
-  Variable get_location : forall s, location s -> mach_state -> Word.int s.
-  Variable set_location : forall s, location s -> Word.int s -> mach_state -> mach_state.
+  Variable get_location : forall s, location s -> mach_state -> Word.wint s.
+  Variable set_location : forall s, location s -> Word.wint s -> mach_state -> mach_state.
 End MACHINE_SIG.
 
 (** Generic register-transfer language *)    
@@ -50,9 +50,9 @@ Module RTL(M : MACHINE_SIG).
   Import M.
   Local Open Scope Z_scope.
   Module AddrIndexed.
-    Definition t := int size_addr.
-    Definition index(i:int size_addr) : positive := ZIndexed.index (Word.unsigned i).
-    Lemma index_inj : forall (x y : int size_addr), index x = index y -> x = y.
+    Definition t := wint size_addr.
+    Definition index(i:wint size_addr) : positive := ZIndexed.index (Word.unsigned i).
+    Lemma index_inj : forall (x y : wint size_addr), index x = index y -> x = y.
     Proof.
       unfold index. destruct x; destruct y ; simpl ; intros.
       generalize intrange intrange0. clear intrange intrange0.
@@ -86,7 +86,7 @@ Module RTL(M : MACHINE_SIG).
   | if_rtl : pseudo_reg size1 -> rtl_instr -> rtl_instr
   | cast_s_rtl : forall s1 s2 (r1:pseudo_reg s1) (rd:pseudo_reg s2),  rtl_instr
   | cast_u_rtl : forall s1 s2 (r1:pseudo_reg s1) (rd:pseudo_reg s2),  rtl_instr
-  | load_imm_rtl : forall s (i:int s) (rd:pseudo_reg s),  rtl_instr
+  | load_imm_rtl : forall s (i:wint s) (rd:pseudo_reg s),  rtl_instr
   | set_loc_rtl : forall s (rs:pseudo_reg s) (l:location s), rtl_instr
   | get_loc_rtl : forall s (l:location s) (rd:pseudo_reg s), rtl_instr
   | set_byte_rtl: forall (rs:pseudo_reg size8)(addr:pseudo_reg size_addr), rtl_instr
@@ -97,13 +97,13 @@ Module RTL(M : MACHINE_SIG).
 
   (** Next, we give meaning to RTL instructions as transformers over an
       environment for pseudo-registers and a machine state. *)
-  Definition pseudo_env := forall s, pseudo_reg s -> int s.
+  Definition pseudo_env := forall s, pseudo_reg s -> wint s.
   Definition empty_env : pseudo_env := fun s _ => Word.zero.
   Definition eq_pseudo_reg s : forall (r1 r2:pseudo_reg s), {r1 = r2} + {r1 <> r2}.
     intros. destruct r1. destruct r2. destruct (Z_eq_dec z z0). subst. left. auto.
     right. intro. apply n. congruence.
   Defined.
-  Definition update_env s (r:pseudo_reg s) (v:int s) (env:pseudo_env) : pseudo_env.
+  Definition update_env s (r:pseudo_reg s) (v:wint s) (env:pseudo_env) : pseudo_env.
     intros s r v env s' r'.
     destruct (eq_nat_dec s s'). subst. destruct (eq_pseudo_reg r r'). subst. apply v.
     apply (env s' r').
@@ -112,7 +112,7 @@ Module RTL(M : MACHINE_SIG).
 
 
   Record oracle := { 
-    oracle_bits : forall s, Z -> int s ; 
+    oracle_bits : forall s, Z -> wint s ; 
     oracle_offset : Z
   }.
 
@@ -153,29 +153,29 @@ Module RTL(M : MACHINE_SIG).
                            rtl_env := empty_env;
                            rtl_mach_state := rtl_mach_state rs ; 
                            rtl_memory := rtl_memory rs |}).
-  Definition set_ps s (r:pseudo_reg s) (v:int s) : RTL unit := 
+  Definition set_ps s (r:pseudo_reg s) (v:wint s) : RTL unit := 
     fun rs => (Okay_ans tt, {| rtl_oracle := rtl_oracle rs ; 
                            rtl_env := update_env r v (rtl_env rs) ;
                            rtl_mach_state := rtl_mach_state rs ; 
                            rtl_memory := rtl_memory rs |}).
-  Definition set_loc s (l:location s) (v:int s) : RTL unit := 
+  Definition set_loc s (l:location s) (v:wint s) : RTL unit := 
     fun rs => (Okay_ans tt, {| rtl_oracle := rtl_oracle rs ; 
                            rtl_env := rtl_env rs ; 
                            rtl_mach_state := set_location l v (rtl_mach_state rs) ; 
                            rtl_memory := rtl_memory rs |}).
-  Definition set_byte (addr:int size_addr) (v:int size8) : RTL unit := 
+  Definition set_byte (addr:wint size_addr) (v:wint size8) : RTL unit := 
     fun rs => (Okay_ans tt, {| rtl_oracle := rtl_oracle rs ; 
                            rtl_env := rtl_env rs ; 
                            rtl_mach_state := rtl_mach_state rs ;
                            rtl_memory := AddrMap.set addr v (rtl_memory rs) |}).
-  Definition get_ps s (r:pseudo_reg s) : RTL (int s) := 
+  Definition get_ps s (r:pseudo_reg s) : RTL (wint s) := 
     fun rs => (Okay_ans (rtl_env rs r), rs).
-  Definition get_loc s (l:location s) : RTL (int s) :=
+  Definition get_loc s (l:location s) : RTL (wint s) :=
     fun rs => (Okay_ans (get_location l (rtl_mach_state rs)), rs).
-  Definition get_byte (addr:int size_addr) : RTL (int size8) := 
+  Definition get_byte (addr:wint size_addr) : RTL (wint size8) := 
     fun rs => (Okay_ans (AddrMap.get addr (rtl_memory rs)), rs).
 
-  Definition choose_bits (s:nat) : RTL (int s) := 
+  Definition choose_bits (s:nat) : RTL (wint s) := 
     fun rs => 
       let o := rtl_oracle rs in 
       let o' := {| oracle_bits := oracle_bits o; oracle_offset := oracle_offset o + 1 |} in
@@ -185,7 +185,7 @@ Module RTL(M : MACHINE_SIG).
              rtl_mach_state := rtl_mach_state rs ;
              rtl_memory := rtl_memory rs |}).
   
-  Definition interp_arith s (b:bit_vector_op)(v1 v2:int s) : int s := 
+  Definition interp_arith s (b:bit_vector_op)(v1 v2:wint s) : wint s := 
     match b with 
       | add_op => Word.add v1 v2
       | sub_op => Word.sub v1 v2
@@ -204,7 +204,7 @@ Module RTL(M : MACHINE_SIG).
       | rol_op => Word.rol v1 v2
     end.
 
-  Definition interp_test s (t:test_op)(v1 v2:int s) : int size1 := 
+  Definition interp_test s (t:test_op)(v1 v2:wint s) : wint size1 := 
     if (match t with 
       | eq_op => Word.eq v1 v2 
       | lt_op => Word.lt v1 v2
