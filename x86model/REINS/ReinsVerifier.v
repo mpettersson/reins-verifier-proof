@@ -237,7 +237,7 @@ Section BUILT_DFAS.
   Definition process_buffer (buffer: list (list int8)) :=
     process_buffer_aux
       (Word.repr 0)
-      (List.fold_left (fun a b => a + b)%nat (List.map (fun l => length l + 1)%nat buffer) 0%nat)
+      ((List.fold_left (fun a b => a + b)%nat (List.map (fun l => length l + 1)%nat buffer) 0%nat) + 1)
       (List.map (List.map byte2token) buffer) 
       (Int32Set.empty, Int32Set.empty, Int32Set.empty, Int32Set.empty).
 
