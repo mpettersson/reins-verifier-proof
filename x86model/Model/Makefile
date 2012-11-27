@@ -1,5 +1,5 @@
-MODULES := Coqlib Tacs Maps Bits X86Syntax Monad Parser Decode RTL X86Semantics CheckDeterministic  
-# DFACorrectness FastVerifier X86Lemmas VerifierCorrectness
+MODULES := Coqlib Tacs Maps Bits X86Syntax Monad Parser Decode RTL X86Semantics
+# CheckDeterministic  
 VS 	:= $(MODULES:%=%.v)
 
 .PHONY: coq clean
