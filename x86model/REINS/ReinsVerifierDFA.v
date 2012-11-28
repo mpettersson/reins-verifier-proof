@@ -49,7 +49,7 @@ Fixpoint int2bools_aux (bs : Z -> bool) (n: nat) : list bool :=
     | S n' => bs (Z_of_nat n) :: int2bools_aux bs n'
   end.
 
-Definition int_to_bools {s} (x: Word.int s) : list bool :=
+Definition int_to_bools {s} (x: Word.wint s) : list bool :=
   int2bools_aux (Word.bits_of_Z (s+1) (Word.unsigned x)) s.
 
 Definition nat2bools(n:nat) : list bool := 

@@ -69,11 +69,11 @@ Definition swap_comparison (c: comparison): comparison :=
 
 (** * Representation of machine integers *)
 
-(** A machine integer (type [int]) is represented as a Coq arbitrary-precision
+(** A machine integer (type [wint]) is represented as a Coq arbitrary-precision
   integer (type [Z]) plus a proof that it is in the range 0 (included) to
   [modulus] (excluded. *)
 
-Record int: Type := mkint { intval: Z; intrange: 0 <= intval < modulus }.
+Record wint: Type := mkint { intval: Z; intrange: 0 <= intval < modulus }.
 Implicit Arguments mkint [].
 
 Definition max_unsigned : Z := modulus - 1.
@@ -84,9 +84,9 @@ Definition min_signed : Z := - half_modulus.
   to the given machine integer, interpreted as unsigned or signed 
   respectively. *)
 
-Definition unsigned (n: int) : Z := intval n.
+Definition unsigned (n: wint) : Z := intval n.
 
-Definition signed (n: int) : Z :=
+Definition signed (n: wint) : Z :=
   if zlt (unsigned n) half_modulus
   then unsigned n
   else unsigned n - modulus.
@@ -101,7 +101,7 @@ Qed.
 (** Conversely, [repr] takes a Coq integer and returns the corresponding
   machine integer.  The argument is treated modulo [modulus]. *)
 
-Definition repr (x: Z) : int := 
+Definition repr (x: Z) : wint := 
   mkint (Zmod x modulus) (mod_in_range x).
 
 Definition zero := repr 0.
@@ -116,7 +116,7 @@ Proof.
   subst Py. reflexivity.
 Qed.
 
-Lemma eq_dec: forall (x y: int), {x = y} + {x <> y}.
+Lemma eq_dec: forall (x y: wint), {x = y} + {x <> y}.
 Proof.
   intros. destruct x; destruct y. case (zeq intval0 intval1); intro.
   left. apply mkint_eq. auto.
@@ -125,29 +125,29 @@ Qed.
 
 (** * Arithmetic and logical operations over machine integers *)
 
-Definition eq (x y: int) : bool := 
+Definition eq (x y: wint) : bool := 
   if zeq (unsigned x) (unsigned y) then true else false.
-Definition lt (x y: int) : bool :=
+Definition lt (x y: wint) : bool :=
   if zlt (signed x) (signed y) then true else false.
-Definition ltu (x y: int) : bool :=
+Definition ltu (x y: wint) : bool :=
   if zlt (unsigned x) (unsigned y) then true else false.
-Definition lequ (x y : int) :  bool :=
+Definition lequ (x y : wint) :  bool :=
   orb (ltu x y) (eq x y).
 
-Definition neg (x: int) : int := repr (- unsigned x).
+Definition neg (x: wint) : wint := repr (- unsigned x).
 
-Definition zero_ext (n: Z) (x: int) : int :=
+Definition zero_ext (n: Z) (x: wint) : wint :=
   repr (Zmod (unsigned x) (two_p n)).
-Definition sign_ext (n: Z) (x: int) : int :=
+Definition sign_ext (n: Z) (x: wint) : wint :=
   repr (let p := two_p n in
         let y := Zmod (unsigned x) p in
         if zlt y (two_p (n-1)) then y else y - p).
 
-Definition add (x y: int) : int :=
+Definition add (x y: wint) : wint :=
   repr (unsigned x + unsigned y).
-Definition sub (x y: int) : int :=
+Definition sub (x y: wint) : wint :=
   repr (unsigned x - unsigned y).
-Definition mul (x y: int) : int :=
+Definition mul (x y: wint) : wint :=
   repr (unsigned x * unsigned y).
 
 Definition Zdiv_round (x y: Z) : Z :=
@@ -159,13 +159,13 @@ Definition Zdiv_round (x y: Z) : Z :=
 Definition Zmod_round (x y: Z) : Z :=
   x - (Zdiv_round x y) * y.
 
-Definition divs (x y: int) : int :=
+Definition divs (x y: wint) : wint :=
   repr (Zdiv_round (signed x) (signed y)).
-Definition mods (x y: int) : int :=
+Definition mods (x y: wint) : wint :=
   repr (Zmod_round (signed x) (signed y)).
-Definition divu (x y: int) : int :=
+Definition divu (x y: wint) : wint :=
   repr (unsigned x / unsigned y).
-Definition modu (x y: int) : int :=
+Definition modu (x y: wint) : wint :=
   repr (Zmod (unsigned x) (unsigned y)).
 
 Definition bool_to_int (b : bool) :=
@@ -212,8 +212,8 @@ if (andb (zle res max_signed) (zle min_signed res)) then
 else
   true.
 
-Definition is_zero (i: int) : bool := eq i zero.
-Definition is_signed (i: int) : bool := lt i zero.
+Definition is_zero (i: wint) : bool := eq i zero.
+Definition is_signed (i: wint) : bool := lt i zero.
 
 (** For bitwise operations, we need to convert between Coq integers [Z]
   and their bit-level representations.  Bit-level representations are
@@ -260,25 +260,25 @@ Fixpoint Z_of_bits (n: nat) (f: Z -> bool) {struct n}: Z :=
 
 (** Bitwise logical ``and'', ``or'' and ``xor'' operations. *)
 
-Definition bitwise_binop (f: bool -> bool -> bool) (x y: int) :=
+Definition bitwise_binop (f: bool -> bool -> bool) (x y: wint) :=
   let fx := bits_of_Z wordsize (unsigned x) in
   let fy := bits_of_Z wordsize (unsigned y) in
   repr (Z_of_bits wordsize (fun i => f (fx i) (fy i))).
 
-Definition and (x y: int): int := bitwise_binop andb x y.
-Definition or (x y: int): int := bitwise_binop orb x y.
-Definition xor (x y: int) : int := bitwise_binop xorb x y.
+Definition and (x y: wint): wint := bitwise_binop andb x y.
+Definition or (x y: wint): wint := bitwise_binop orb x y.
+Definition xor (x y: wint) : wint := bitwise_binop xorb x y.
 
-Definition not (x: int) : int := xor x mone.
+Definition not (x: wint) : wint := xor x mone.
 
 (** Shifts and rotates. *)
 
-Definition shl (x y: int): int :=
+Definition shl (x y: wint): wint :=
   let fx := bits_of_Z wordsize (unsigned x) in
   let vy := unsigned y in
   repr (Z_of_bits wordsize (fun i => fx (i - vy))).
 
-Definition shru (x y: int): int :=
+Definition shru (x y: wint): wint :=
   let fx := bits_of_Z wordsize (unsigned x) in
   let vy := unsigned y in
   repr (Z_of_bits wordsize (fun i => fx (i + vy))).
@@ -288,28 +288,28 @@ Definition shru (x y: int): int :=
   (standard behaviour for arithmetic right shift) and
   [shrx] rounds towards zero. *)
 
-Definition shr (x y: int): int :=
+Definition shr (x y: wint): wint :=
   repr (signed x / two_p (unsigned y)).
 
-Definition shrx (x y: int): int :=
+Definition shrx (x y: wint): wint :=
   divs x (shl one y).
 
-Definition shr_carry (x y: int) :=
+Definition shr_carry (x y: wint) :=
   sub (shrx x y) (shr x y).
 
-Definition rol (x y: int) : int :=
+Definition rol (x y: wint) : wint :=
   let fx := bits_of_Z wordsize (unsigned x) in
   let vy := unsigned y in
   repr (Z_of_bits wordsize
          (fun i => fx (Zmod (i - vy) (Z_of_nat wordsize)))).
 
-Definition ror (x y: int) : int :=
+Definition ror (x y: wint) : wint :=
   let fx := bits_of_Z wordsize (unsigned x) in
   let vy := unsigned y in
   repr (Z_of_bits wordsize
          (fun i => fx (Zmod (i + vy) (Z_of_nat wordsize)))).
 
-Definition rolm (x a m: int): int := and (rol x a) m.
+Definition rolm (x a m: wint): wint := and (rol x a) m.
 
 (** Decomposition of a number as a sum of powers of two. *)
 
@@ -321,12 +321,12 @@ Fixpoint Z_one_bits (n: nat) (x: Z) (i: Z) {struct n}: list Z :=
       if b then i :: Z_one_bits m y (i+1) else Z_one_bits m y (i+1)
   end.
 
-Definition one_bits (x: int) : list int :=
+Definition one_bits (x: wint) : list wint :=
   List.map repr (Z_one_bits wordsize (unsigned x) 0).
 
 (** Recognition of powers of two. *)
 
-Definition is_power2 (x: int) : option int :=
+Definition is_power2 (x: wint) : option wint :=
   match Z_one_bits wordsize (unsigned x) 0 with
   | i :: nil => Some (repr i)
   | _ => None
@@ -403,12 +403,12 @@ Fixpoint is_rlw_mask_rec (n: nat) (s: rlw_state) (x: Z) {struct n} : bool :=
       is_rlw_mask_rec m (rlw_transition s b) y
   end.
 
-Definition is_rlw_mask (x: int) : bool :=
+Definition is_rlw_mask (x: wint) : bool :=
   is_rlw_mask_rec wordsize RLW_S0 (unsigned x).
 
 (** Comparisons. *)
 
-Definition cmp (c: comparison) (x y: int) : bool :=
+Definition cmp (c: comparison) (x y: wint) : bool :=
   match c with
   | Ceq => eq x y
   | Cne => negb (eq x y)
@@ -418,7 +418,7 @@ Definition cmp (c: comparison) (x y: int) : bool :=
   | Cge => negb (lt x y)
   end.
 
-Definition cmpu (c: comparison) (x y: int) : bool :=
+Definition cmpu (c: comparison) (x y: wint) : bool :=
   match c with
   | Ceq => eq x y
   | Cne => negb (eq x y)
@@ -428,9 +428,9 @@ Definition cmpu (c: comparison) (x y: int) : bool :=
   | Cge => negb (ltu x y)
   end.
 
-Definition is_false (x: int) : Prop := x = zero.
-Definition is_true  (x: int) : Prop := x <> zero.
-Definition notbool  (x: int) : int  := if eq x zero then one else zero.
+Definition is_false (x: wint) : Prop := x = zero.
+Definition is_true  (x: wint) : Prop := x <> zero.
+Definition notbool  (x: wint) : wint  := if eq x zero then one else zero.
 
 (** * Properties of integers and integer arithmetic *)
 
@@ -457,7 +457,7 @@ Proof.
   rewrite zeq_false. auto. auto.
 Qed.
 
-Theorem eq_spec: forall (x y: int), if eq x y then x = y else x <> y.
+Theorem eq_spec: forall (x y: wint), if eq x y then x = y else x <> y.
 Proof.
   intros; unfold eq. case (eq_dec x y); intro.
   subst y. rewrite zeq_true. auto.
@@ -572,7 +572,7 @@ Proof. intros.
 Qed.
 
 Lemma int_lt_trans : 
-  forall (i1 i2 i3:int), lt i1 i2 = true -> lt i2 i3 = true -> lt i1 i3 = true.
+  forall (i1 i2 i3:wint), lt i1 i2 = true -> lt i2 i3 = true -> lt i1 i3 = true.
 Proof. unfold lt. intros i1 i2 i3 H1 H2.
   apply int_lt_inv in H1. apply int_lt_inv in H2.
   apply zlt_true.
@@ -580,7 +580,7 @@ Proof. unfold lt. intros i1 i2 i3 H1 H2.
 Qed.
 
 Lemma int_ltu_trans : 
-  forall (i1 i2 i3:int), 
+  forall (i1 i2 i3:wint), 
     ltu i1 i2 = true -> ltu i2 i3 = true -> ltu i1 i3 = true.
 Proof. unfold ltu. intros i1 i2 i3 H1 H2.
   apply int_ltu_inv in H1. apply int_ltu_inv in H2.
@@ -588,7 +588,7 @@ Proof. unfold ltu. intros i1 i2 i3 H1 H2.
 Qed.
 
 Lemma int_eq_ltu_trans :
-  forall (i1 i2 i3:int), 
+  forall (i1 i2 i3:wint), 
     eq i1 i2 = true -> ltu i2 i3 = true -> ltu i1 i3 = true.
 Proof. intros i1 i2 i3 H1 H2. 
   apply int_eq_inv in H1. apply int_ltu_inv in H2. apply zlt_true. omega.
@@ -784,7 +784,7 @@ Lemma eqm_mult:
 Proof (@eqmod_mult modulus).
 Hint Resolve eqm_mult: ints.
 
-(** ** Properties of the coercions between [Z] and [int] *)
+(** ** Properties of the coercions between [Z] and [wint] *)
 
 Lemma eqm_unsigned_repr:
   forall z, eqm z (unsigned (repr z)).
@@ -1611,7 +1611,7 @@ Proof.
 Qed.  
 
 Theorem not_involutive:
-  forall (x: int), not (not x) = x.
+  forall (x: wint), not (not x) = x.
 Proof.
   intros. unfold not. rewrite xor_assoc. 
   assert (xor mone mone = zero). apply xor_x_x.
@@ -1629,7 +1629,7 @@ Qed.
 
 Section REFLECTION.
 
-Variables (f g: int -> int).
+Variables (f g: wint -> wint).
 
 Fixpoint check_equal_on_range (n: nat) : bool :=
   match n with
@@ -3452,7 +3452,7 @@ Proof.
      unfold max_unsigned, modulus. apply two_power_nat_increases. omega.
 Qed.
 
-Fixpoint int_of_one_bits (l: list int) : int :=
+Fixpoint int_of_one_bits (l: list wint) : wint :=
   match l with
   | nil => zero
   | a :: b => add (shl one a) (int_of_one_bits b)
@@ -3610,7 +3610,7 @@ Qed.
 Definition low_bits_zero (x z:Z) := 
   forall i:Z, 0 <= i < z -> bits_of_Z wordsize x i = false.
 
-Lemma shl_low_bits_zero : forall (z:Z) (x:int),
+Lemma shl_low_bits_zero : forall (z:Z) (x:wint),
   z <= Z_of_nat wordsize -> low_bits_zero (unsigned (shl x (repr z))) z.
 Proof. unfold low_bits_zero; intros. unfold shl.
   rewrite unsigned_repr2 by (apply Z_of_bits_range).
@@ -3780,15 +3780,15 @@ Implicit Arguments bool_to_int [wordsize_minus_one].
 Implicit Arguments neg [wordsize_minus_one].
 End Word.
 
-Definition int1 := Word.int 0.
-Definition int4 := Word.int 3.
-Definition int8 := Word.int 7.  
-Definition int16 := Word.int 15.
-Definition int32 := Word.int 31. 
-Definition int64 := Word.int 63.
+Definition int1 := Word.wint 0.
+Definition int4 := Word.wint 3.
+Definition int8 := Word.wint 7.  
+Definition int16 := Word.wint 15.
+Definition int32 := Word.wint 31. 
+Definition int64 := Word.wint 63.
 
 
-(** * Tactics for int *)
+(** * Tactics for wint *)
 
 (** Convert operations on int32 to operations on Z *)
 Hint Rewrite Word.int_eq_true_iff Word.int_eq_false_iff Word.int_eq_unsigned 
@@ -3806,7 +3806,7 @@ Require Import Coq.Structures.OrderedType.
    situtions *)
 Module Int32_OT <: OrderedType.
 
-  Definition t := Word.int 31.
+  Definition t := Word.wint 31.
   Definition eq (x y: t) := Word.eq  x y = true.
 
   Lemma eq_refl : forall x : t, eq x x.

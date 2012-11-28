@@ -237,7 +237,7 @@ Section BUILT_DFAS.
   Definition process_buffer (buffer: list (list int8)) :=
     process_buffer_aux
       (Word.repr 0)
-      (List.fold_left (fun a b => a + b)%nat (List.map (fun l => length l + 1)%nat buffer) 0%nat)
+      ((List.fold_left (fun a b => a + b)%nat (List.map (fun l => length l + 1)%nat buffer) 0%nat) + 1)
       (List.map (List.map byte2token) buffer) 
       (Int32Set.empty, Int32Set.empty, Int32Set.empty, Int32Set.empty).
 
@@ -347,4 +347,4 @@ Definition checkProgram' (data : list (list int8)) : (bool * Int32Set.t) :=
 (*Definition ncflow := make_dfa non_cflow_parser.
 Definition dbranch := make_dfa (alts dir_cflow).
 Definition ibranch := make_dfa (alts reinsjmp_mask).*)
-(*Extraction "fastverif.ml" checkProgram ncflow dbranch ibranch.*)
+Extraction "reinsverif.ml" checkProgram'.

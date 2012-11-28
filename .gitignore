@@ -3,3 +3,8 @@
 *.glob
 *.swp
 *.swo
+*.cmo
+*.cmi
+Makefile.coq
+check
+check.o

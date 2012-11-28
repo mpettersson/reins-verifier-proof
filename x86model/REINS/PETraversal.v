@@ -366,7 +366,7 @@ Definition getExecutableSections (data : list (list BYTE))
                                  : list (DWORD * DWORD * list (list BYTE)) :=
    let dosHeader := parseImageDosHeader data in
    let ntHeader := derefImageNtHeader data (e_lfanew dosHeader) in
-   getExecutableBounds data (Z_of_nat((ptr_to_nat (e_lfanew dosHeader)) + 248))
+   getExecutableBounds data ((ptr_to_Z (e_lfanew dosHeader)) + 248)
                                           (word_to_nat (NumberOfSections (FileHeader ntHeader)))
 .
 
