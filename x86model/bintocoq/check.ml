@@ -50,7 +50,7 @@ let rec print_matr' (l : (int list) list) =
 let print_matr (l : (int list) list) =
   print_string "["; print_matr' l; print_string "]\n";;
 
-let print_dos d =
+(*let print_dos d =
   print_int (word_to_nat (e_magic     d)); print_newline ();
   print_int (word_to_nat (e_cblp      d)); print_newline ();
   print_int (word_to_nat (e_cp        d)); print_newline ();
@@ -69,7 +69,7 @@ let print_dos d =
   print_int (word_to_nat (e_oemid     d)); print_newline ();
   print_int (word_to_nat (e_oeminfo   d)); print_newline ();
   print_list (List.map word_to_nat (vtolist 10 (e_res2 d)));
-  print_int (ptr_to_nat  (e_lfanew    d)); print_newline ();;
+  print_int (ptr_to_nat  (e_lfanew    d)); print_newline ();;*)
 
 
 let main () =
