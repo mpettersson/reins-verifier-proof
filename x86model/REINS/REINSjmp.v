@@ -119,7 +119,7 @@ Lemma reinsjmp_nonIAT_parser_splits :
 Proof.
   intros. generalize (reinsjmp_nonIAT_parser_splits' _ H). t.
   assert (length x = 48). unfold reins_nonIAT_MASK_p in H2. unfold bitsleft in H2.
-  simpl in H2. repeat pinv ; simpl ; auto.
+  unfold int32_p in H2. simpl in H2. repeat pinv ; simpl ; auto.
   generalize (split_bytes_n 6 _ _ _ H1 H4). t. exists x2. exists x3. exists x1.
   repeat split ; auto. rewrite H6. auto. rewrite H7. auto.
 Qed.
@@ -134,7 +134,7 @@ Lemma reinsjmp_IAT_or_RET_parser_splits :
 Proof.
   intros. generalize (reinsjmp_IAT_or_RET_parser_splits' _ H). t.
   assert (length x = 56). unfold reins_IAT_or_RET_MASK_p in H1. unfold bitsleft in H1.
-  simpl in H1. repeat pinv ; simpl ; auto.
+  unfold int32_p in H1. simpl in H1. repeat pinv ; simpl ; auto.
   generalize (split_bytes_n 7 _ _ _ H0 H3). t. exists x1. exists x2.
   repeat split ; auto. rewrite H5. auto. rewrite H6. auto.
 Qed.

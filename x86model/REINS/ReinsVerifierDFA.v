@@ -180,15 +180,16 @@ Fixpoint bitslist (bs: list bool) : parser unit_t :=
     | nil => Eps_p
     | b::bs' => Cat_p (Char_p b) (bitslist bs') @ (fun _ => tt %% unit_t)
   end.
+ 
+
 
 Definition int32_p (i : int32) : parser unit_t :=
-  let b0 := Word.shl i (Word.repr 24) in
-  let b1 := Word.shl (Word.shru (Word.modu i (Word.repr 65536)) (Word.repr 8)) (Word.repr 16) in
-  let b2 := Word.shl (Word.shru (Word.modu i (Word.repr 16777216)) (Word.repr 16)) (Word.repr 8) in
-  let b3 := Word.shru i (Word.repr 24) in
-  let w := Word.or (Word.or b0 b1) (Word.or b2 b3) in
-    bitslist (int_to_bools w).
-
+    let bs := int_to_bools i in
+    let b0 := skipn 24 bs in
+    let b1 := skipn 16 (firstn 24 bs) in
+    let b2 := skipn 8 (firstn 16 bs) in
+    let b3 := firstn 8 bs in
+      bitslist (b0 ++ b1 ++ b2 ++ b3).
 
 (* Jumps that don't target the IAT must be preceded by a masking instruction
    a la nacl *)
