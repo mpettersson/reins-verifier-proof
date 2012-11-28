@@ -181,6 +181,15 @@ Fixpoint bitslist (bs: list bool) : parser unit_t :=
     | b::bs' => Cat_p (Char_p b) (bitslist bs') @ (fun _ => tt %% unit_t)
   end.
 
+Definition int32_p (i : int32) : parser unit_t :=
+  let b0 := Word.shl i (Word.repr 24) in
+  let b1 := Word.shl (Word.shru (Word.modu i (Word.repr 65536)) (Word.repr 8)) (Word.repr 16) in
+  let b2 := Word.shl (Word.shru (Word.modu i (Word.repr 16777216)) (Word.repr 16)) (Word.repr 8) in
+  let b3 := Word.shru i (Word.repr 24) in
+  let w := Word.or (Word.or b0 b1) (Word.or b2 b3) in
+    bitslist (int_to_bools w).
+
+
 (* Jumps that don't target the IAT must be preceded by a masking instruction
    a la nacl *)
 Definition reins_nonIAT_MASK_p (r: register) : parser instruction_t :=
@@ -194,7 +203,7 @@ Definition reins_nonIAT_MASK_p (r: register) : parser instruction_t :=
      *)
     "1000" $$ "0001" $$ "11" $$ bits "100"
     $ bitslist (register_to_bools r)             (* Register *)
-    $ bitslist (int_to_bools safeMask)
+    $ int32_p safeMask
     @ (fun _ => AND true (Reg_op r) (Imm_op safeMask)
       %% instruction_t).
 
@@ -216,7 +225,7 @@ Definition reins_IAT_or_RET_MASK_p : parser instruction_t :=
     "1000" $$ "0001" $$
     "00" $$ "100" $$ "100" $$
     "00" $$ "100" $$ bits "100"
-    $ bitslist (int_to_bools safeMask)
+    $ int32_p safeMask
     @ (fun _ => AND true (Reg_op ESP) (Imm_op safeMask)
       %% instruction_t).
 

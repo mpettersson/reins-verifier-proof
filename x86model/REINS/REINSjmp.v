@@ -59,7 +59,7 @@ Lemma reinsjmp_IAT_or_RET_parser_splits' :
     in_parser reinsjmp_IAT_or_RET_mask (flat_map byte_explode s) v -> 
     exists s1, exists s2,
       flat_map byte_explode s = s1 ++ s2 /\
-      in_parser (reins_IAT_or_RET_or_ret_MASK_p) s1 (fst v) /\ 
+      in_parser (reins_IAT_or_RET_MASK_p) s1 (fst v) /\ 
       in_parser (reins_IAT_JMP_p |+| RET_p) s2 (snd v).
 Proof.
   unfold reinsjmp_IAT_or_RET_mask. unfold reinsjmp_IAT_or_RET_p. simpl ; unfold never. intros. 
@@ -108,20 +108,35 @@ Proof.
   split. simpl. rewrite H3. auto. split. rewrite H4. auto. auto.
 Qed.
 
-Lemma nacl_jmp_parser_splits : 
+Lemma reinsjmp_nonIAT_parser_splits : 
   forall bs v,
-    in_parser (alts nacljmp_mask) (flat_map byte_explode bs) v -> 
+    in_parser reinsjmp_nonIAT_mask (flat_map byte_explode bs) v -> 
     exists b1, exists b2, exists r,
       r <> ESP /\ 
       bs = b1 ++ b2 /\ 
-      in_parser (nacl_MASK_p r) (flat_map byte_explode b1) (fst v) /\ 
-      in_parser (nacl_JMP_p r |+| nacl_CALL_p r) (flat_map byte_explode b2) (snd v).
+      in_parser (reins_nonIAT_MASK_p r) (flat_map byte_explode b1) (fst v) /\ 
+      in_parser (reins_nonIAT_JMP_p r |+| reins_nonIAT_CALL_p r) (flat_map byte_explode b2) (snd v).
 Proof.
-  intros. generalize (nacl_jmp_parser_splits' _ H). t.
-  assert (length x = 24). unfold nacl_MASK_p in H2. unfold bitsleft in H2.
+  intros. generalize (reinsjmp_nonIAT_parser_splits' _ H). t.
+  assert (length x = 48). unfold reins_nonIAT_MASK_p in H2. unfold bitsleft in H2.
   simpl in H2. repeat pinv ; simpl ; auto.
-  generalize (split_bytes_n 3 _ _ _ H1 H4). t. exists x2. exists x3. exists x1.
+  generalize (split_bytes_n 6 _ _ _ H1 H4). t. exists x2. exists x3. exists x1.
   repeat split ; auto. rewrite H6. auto. rewrite H7. auto.
+Qed.
+
+Lemma reinsjmp_IAT_or_RET_parser_splits : 
+  forall bs v,
+    in_parser reinsjmp_IAT_or_RET_mask (flat_map byte_explode bs) v -> 
+    exists b1, exists b2,
+      bs = b1 ++ b2 /\ 
+      in_parser reins_IAT_or_RET_MASK_p (flat_map byte_explode b1) (fst v) /\ 
+      in_parser (reins_IAT_JMP_p |+| RET_p) (flat_map byte_explode b2) (snd v).
+Proof.
+  intros. generalize (reinsjmp_IAT_or_RET_parser_splits' _ H). t.
+  assert (length x = 56). unfold reins_IAT_or_RET_MASK_p in H1. unfold bitsleft in H1.
+  simpl in H1. repeat pinv ; simpl ; auto.
+  generalize (split_bytes_n 7 _ _ _ H0 H3). t. exists x1. exists x2.
+  repeat split ; auto. rewrite H5. auto. rewrite H6. auto.
 Qed.
 
 Import CheckDeterministic.
@@ -162,6 +177,8 @@ Proof.
   unfold reg, field ; destruct r ; simpl ; intros ; repeat pinv ; 
   repeat econstructor ; eauto.
 Qed.
+
+
 
 Lemma mask_parser s : 
   in_parser (bitslist (int_to_bools safeMask)) s tt -> 
