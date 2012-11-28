@@ -1,3 +1,14 @@
+(*  Copyright (c) 2012. Ben Ferrell, Kenneth Miller, 
+ *  Matthew Pettersson, Justin Sahs, and Brett Webster.
+ *
+ *  This file is part of REINS.
+ *
+ *  This file is free software; you can redistribute it and/or
+ *  modify it under the terms of the GNU General Public License as
+ *  published by the Free Software Foundation; either version 2 of
+ *  the License, or (at your option) any later version.*)
+
+
 (* TODO:
  * 1) How to model a C union in Coq equivalently?
  * - IDEA: an inductive type
@@ -208,8 +219,8 @@ Record _IMAGE_SECTION_HEADER : Type := mkImageSectionHeader {
 }.
 
 (* The following list of Definitions are used for the characteristics field, 
-in order to discern the purpose and capabilities of a section of a PE file
-Note: Coq doesn't support hex literals, so they are given in decimal *)
+ * in order to discern the purpose and capabilities of a section of a PE file
+ * Note: Coq doesn't support hex literals, so they are given in decimal *)
 Open Scope Z_scope.
 Definition IMAGE_SCN_TYPE_NO_PAD            : int32 := Word.repr 8.          (* 0x00000008 obsolete *)
 Definition IMAGE_SCN_CNT_CODE               : int32 := Word.repr 32.         (* 0x00000020 The section contains executable code. *)
