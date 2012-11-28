@@ -1,5 +1,16 @@
+(* Copyright (c) 2012. Ben Ferrell, Kenneth Miller, 
+ *  Matthew Pettersson, Justin Sahs, and Brett Webster.
+ *
+ *  This file is part of REINS.
+ *
+ *  This file is free software; you can redistribute it and/or
+ *  modify it under the terms of the GNU General Public License as
+ *  published by the Free Software Foundation; either version 2 of
+ *  the License, or (at your option) any later version.*)
+
+
 (* TODO need to find out the size of LPBYTE in order to correctly observe 
-Image Thunk Data structures and others... *)
+ * Image Thunk Data structures and others... *)
 
 Require Import Coq.Lists.List.
 Require Import PEFormat.
@@ -293,7 +304,7 @@ Definition getExports (data : list (list BYTE)) : list DWORD :=
     end.
 
 (* given a file, check that all exported symbols target
-*  low memory chunk boundaries *)
+ * low memory chunk boundaries *)
 Definition checkExports (data : list (list BYTE)) (mask : DWORD) : bool :=
     let exports := getExports data in
     let check (addr : DWORD) : bool :=
