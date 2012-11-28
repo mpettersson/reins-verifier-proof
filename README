@@ -1,0 +1,25 @@
+What you will find in this tarball:
+
+./x86model/
+	A Coq formalization of a Pentium
+
+./x86model/bintocoq
+		An OCaml implementation of the REINS verifier
+
+./x86model/cdriver
+		A C implementation of an SFI checker using our certified DFAs
+
+./x86model/fuzz
+		A fuzz tester for the x86 model
+
+./x86model/Model
+		The CPU model
+
+./x86model/REINS
+		A Coq implementation of the REINS verifier 
+
+./x86model/RockSalt
+		A formally verified SFI checker based on our model of x86
+
+./x86model/semantics_trace
+		Simulation and instrumentation of x86 binaries
