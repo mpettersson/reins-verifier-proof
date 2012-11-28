@@ -177,15 +177,13 @@ Proof.
   unfold reg, field ; destruct r ; simpl ; intros ; repeat pinv ; 
   repeat econstructor ; eauto.
 Qed.
-
-
-
 Lemma mask_parser s : 
-  in_parser (bitslist (int_to_bools safeMask)) s tt -> 
-  in_parser byte s safeMask.
+  in_parser (int32_p safeMask) s tt -> 
+  in_parser word s safeMask.
 Proof.
-  simpl. unfold byte. unfold field. simpl. intros.
-  repeat pinv. repeat econstructor.
+  unfold word. unfold byte. unfold field. unfold int32_p. simpl. intros.
+  repeat pinv. repeat econstructor. repeat rewrite <- app_assoc.
+  repeat rewrite -> app_nil_l. eexists. vm_compute. reflexivity.
 Qed.
 
 Lemma nacl_mask_subset r s i : 
