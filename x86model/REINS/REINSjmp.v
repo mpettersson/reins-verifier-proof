@@ -479,22 +479,46 @@ Proof.
   eapply in_parser_implies_simple_parse ; auto.
 Qed.
 
-Lemma nacljmp_mask_dfa_length : 
+Lemma reinsjmp_nonIAT_mask_dfa_length : 
   forall (d:DFA), 
     (* Need to use abstract_build_dfa for the same reason as above I believe *)
-    abstract_build_dfa 256 nat2bools 400 (par2rec (alts nacljmp_mask)) = Some d -> 
+    abstract_build_dfa 256 nat2bools 400 (par2rec reinsjmp_nonIAT_mask) = Some d -> 
     forall (bytes:list int8) (n:nat) (nats2:list nat),
       dfa_recognize 256 d (List.map byte2token bytes) = Some (n, nats2) -> 
         (n <= 15). 
 Proof.
-  intros. apply nacljmp_dfa_corr1 in H0.
+  intros. apply reinsjmp_nonIAT_dfa_corr1 in H0.
    destruct H0. destruct H0.
    destruct H0. destruct H0. 
    destruct H0. destruct H0. 
    destruct H0.
    destruct H1. destruct H2.
    destruct H3.
-   assert (max_bit_count (alts nacljmp_mask) = Some 40).
+   assert (max_bit_count reinsjmp_nonIAT_mask = Some 64).
+     vm_compute; trivial.
+   eapply max_count_corr in H0.
+   rewrite H5 in H0.
+   rewrite byte_explode_mult_len in H0.
+   rewrite H3. omega.
+   auto.
+Qed.
+
+Lemma reinsjmp_IAT_or_RET_mask_dfa_length : 
+  forall (d:DFA), 
+    (* Need to use abstract_build_dfa for the same reason as above I believe *)
+    abstract_build_dfa 256 nat2bools 400 (par2rec reinsjmp_IAT_or_RET_mask) = Some d -> 
+    forall (bytes:list int8) (n:nat) (nats2:list nat),
+      dfa_recognize 256 d (List.map byte2token bytes) = Some (n, nats2) -> 
+        (n <= 15). 
+Proof.
+  intros. apply reinsjmp_IAT_or_RET_dfa_corr1 in H0.
+   destruct H0. destruct H0.
+   destruct H0. destruct H0. 
+   destruct H0. destruct H0. 
+   destruct H0.
+   destruct H1. destruct H2.
+   destruct H3.
+   assert (max_bit_count reinsjmp_IAT_or_RET_mask = Some 104).
      vm_compute; trivial.
    eapply max_count_corr in H0.
    rewrite H5 in H0.
