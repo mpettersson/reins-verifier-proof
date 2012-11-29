@@ -287,20 +287,27 @@ Lemma reinsjmp_IAT_jump_subset s i :
   in_parser instruction_parser s (mkPrefix None None false false, i).
 Admitted.
 
-Lemma reinsjmp_nonIAT_parser_inv r s1 s2 i1 i2: 
-  r <> ESP -> 
-  in_parser (reins_nonIAT_MASK_p r) s1 i1 -> 
-  in_parser (reins_nonIAT_JMP_p r |+| reins_nonIAT_CALL_p r) s2 i2 -> 
-  reinsjmp_nonIAT_mask_instr (mkPrefix None None false false) i1 
+Lemma reinsjmp_nonIAT_parser_inv r s1 s2 i1 i2:
+  r <> ESP ->
+  in_parser (reins_nonIAT_MASK_p r) s1 i1 ->
+  in_parser (reins_nonIAT_JMP_p r |+| reins_nonIAT_CALL_p r) s2 i2 ->
+  reinsjmp_nonIAT_mask_instr (mkPrefix None None false false) i1
                      (mkPrefix None None false false) i2 = true.
-Admitted.
+Proof.
+  unfold reins_nonIAT_MASK_p, reins_nonIAT_JMP_p, reins_nonIAT_CALL_p ; intros.
+  repeat pinv ; unfold reinsjmp_nonIAT_mask_instr ; simpl ; destruct (register_eq_dec r ESP) ;
+  try congruence ; destruct (register_eq_dec r r) ; try congruence ; auto.
+Qed.
 
-Lemma reinsjmp_IAT_or_RET_parser_inv s1 s2 i1 i2: 
-  in_parser (reins_IAT_or_RET_MASK_p) s1 i1 -> 
-  in_parser (reins_IAT_JMP_p |+| RET_p) s2 i2 -> 
-  reinsjmp_IAT_or_RET_mask_instr (mkPrefix None None false false) i1 
-                     (mkPrefix None None false false) i2 = true.
-Admitted.
+Lemma reinsjmp_IAT_or_RET_parser_inv s1 s2 i1 i2:
+  in_parser (reins_IAT_or_RET_MASK_p) s1 i1 ->
+  in_parser (reins_IAT_JMP_p) s2 i2 ->
+  reinsjmp_IAT_or_RET_mask_instr (mkPrefix None None false false) i1
+                        (mkPrefix None None false false) i2 = true.
+Proof.
+  unfold reins_IAT_or_RET_MASK_p, reins_IAT_JMP_p ; intros.
+  repeat pinv ; unfold reinsjmp_IAT_or_RET_mask_instr ; simpl ; auto.
+Qed.
 
 Lemma reinsjmp_nonIAT_dfa_corr1 : 
   forall (d:DFA),
