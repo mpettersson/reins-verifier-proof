@@ -186,6 +186,7 @@ Proof.
   repeat rewrite -> app_nil_l. eexists. vm_compute. reflexivity.
 Qed.
 
+(*
 Lemma nacl_mask_subset r s i : 
   in_parser (nacl_MASK_p r) s i -> 
   in_parser instruction_parser s (mkPrefix None None false false, i).
@@ -264,45 +265,121 @@ Proof.
   repeat pinv ; unfold nacljmp_mask_instr ; simpl ; destruct (register_eq_dec r ESP) ; 
   try congruence ; destruct (register_eq_dec r r) ; try congruence ; auto.
 Qed.
+*)
 
-Lemma nacljmp_dfa_corr1 : 
+Lemma reinsjmp_nonIAT_mask_subset r s i : 
+  in_parser (reins_nonIAT_MASK_p r) s i -> 
+  in_parser instruction_parser s (mkPrefix None None false false, i).
+Admitted.
+
+Lemma reinsjmp_nonIAT_jump_subset r s i : 
+  in_parser (reins_nonIAT_JMP_p r |+| reins_nonIAT_CALL_p r) s i -> 
+  in_parser instruction_parser s (mkPrefix None None false false, i).
+Admitted.
+
+Lemma reinsjmp_IAT_or_RET_mask_subset s i : 
+  in_parser (reins_IAT_or_RET_MASK_p) s i -> 
+  in_parser instruction_parser s (mkPrefix None None false false, i).
+Admitted.
+
+Lemma reinsjmp_IAT_jump_subset s i : 
+  in_parser (reins_IAT_JMP_p |+| RET_p) s i -> 
+  in_parser instruction_parser s (mkPrefix None None false false, i).
+Admitted.
+
+Lemma reinsjmp_nonIAT_parser_inv r s1 s2 i1 i2: 
+  r <> ESP -> 
+  in_parser (reins_nonIAT_MASK_p r) s1 i1 -> 
+  in_parser (reins_nonIAT_JMP_p r |+| reins_nonIAT_CALL_p r) s2 i2 -> 
+  reinsjmp_nonIAT_mask_instr (mkPrefix None None false false) i1 
+                     (mkPrefix None None false false) i2 = true.
+Admitted.
+
+Lemma reinsjmp_IAT_or_RET_parser_inv s1 s2 i1 i2: 
+  in_parser (reins_IAT_or_RET_MASK_p) s1 i1 -> 
+  in_parser (reins_IAT_JMP_p |+| RET_p) s2 i2 -> 
+  reinsjmp_IAT_or_RET_mask_instr (mkPrefix None None false false) i1 
+                     (mkPrefix None None false false) i2 = true.
+Admitted.
+
+Lemma reinsjmp_nonIAT_dfa_corr1 : 
   forall (d:DFA),
-    abstract_build_dfa 256 nat2bools 400 (par2rec (alts nacljmp_mask)) = Some d -> 
+    abstract_build_dfa 256 nat2bools 400 (par2rec reinsjmp_nonIAT_mask) = Some d -> 
     forall (bytes:list int8) (n:nat) (nats2:list nat),
       dfa_recognize 256 d (List.map byte2token bytes) = Some (n,nats2) -> 
       exists bytes1, exists pfx1:prefix, exists ins1:instr, exists bytes2,
         exists pfx2:prefix, exists ins2:instr,
-        in_parser (alts nacljmp_mask) (flat_map byte_explode (bytes1 ++ bytes2))
+        in_parser reinsjmp_nonIAT_mask (flat_map byte_explode (bytes1 ++ bytes2))
         (ins1,ins2) /\
         in_parser instruction_parser (flat_map byte_explode bytes1) (pfx1,ins1) /\ 
         in_parser instruction_parser (flat_map byte_explode bytes2) (pfx2,ins2) /\ 
         n = length (bytes1 ++ bytes2) /\ 
         bytes = bytes1 ++ bytes2 ++ (List.map nat_to_byte nats2) /\ 
-        nacljmp_mask_instr pfx1 ins1 pfx2 ins2 = true /\
+        reinsjmp_nonIAT_mask_instr pfx1 ins1 pfx2 ins2 = true /\
         (forall ts3 ts4,
           (length ts3 < length (bytes1 ++ bytes2))%nat -> 
           bytes = ts3 ++ ts4 ->
-          forall v0, ~ in_parser (alts nacljmp_mask) (flat_map byte_explode ts3) v0).
+          forall v0, ~ in_parser reinsjmp_nonIAT_mask (flat_map byte_explode ts3) v0).
 Proof.
   intros. subst. rewrite build_dfa_eq in H.
   generalize (dfa_recognize_corr _ _ _ _ H (List.map byte2token bytes)
     (bytesLt256 _)). clear H. rewrite H0. clear H0. mysimp.
   generalize (byte2token_app _ _ _ H). t. subst.
   rewrite (nat2bools_byte2token_is_byte_explode _) in H1.
-  generalize (nacl_jmp_parser_splits _ H1). clear H1. t. destruct x0. simpl in *.
+  generalize (reinsjmp_nonIAT_parser_splits _ H1). clear H1. t. destruct x0. simpl in *.
   exists x. exists (mkPrefix None None false false). exists i.
   exists x3. exists (mkPrefix None None false false). exists i0. split.
-  rewrite flat_map_app. unfold nacljmp_p. destruct x4 ; try congruence ;
+  rewrite flat_map_app. unfold reinsjmp_nonIAT_p. destruct x4 ; try congruence ;
   repeat (try (eapply Alt_left_pi ; econstructor ; eauto ; fail) ; eapply Alt_right_pi).
-  split. apply (nacl_mask_subset H3). split. eapply (nacl_jump_subset H4). 
+  split. apply (reinsjmp_nonIAT_mask_subset H3). split. eapply (reinsjmp_nonIAT_jump_subset H4). 
   split. rewrite H1. rewrite map_length. auto. split. subst. rewrite app_assoc.
   assert (x2 = List.map nat_to_byte (List.map byte2token x2)) ; [ idtac | congruence].
-  rewrite n2bs. auto. split. eapply nacl_jmp_parser_inv ; eauto.
+  rewrite n2bs. auto. split. eapply reinsjmp_nonIAT_parser_inv ; eauto.
   intros. rewrite H1 in H2. specialize (H2 (List.map byte2token ts3)
   (List.map byte2token ts4)). repeat rewrite map_length in H2.
   specialize (H2 H5). subst. rewrite H6 in H2. rewrite map_app in H2.
   specialize (H2 (eq_refl _)). rewrite nat2bools_byte2token_is_byte_explode in H2.
   intro. apply (H2 v0 H1).
+Qed.
+
+Lemma reinsjmp_IAT_or_RET_dfa_corr1 : 
+  forall (d:DFA),
+    abstract_build_dfa 256 nat2bools 400 (par2rec reinsjmp_IAT_or_RET_mask) = Some d -> 
+    forall (bytes:list int8) (n:nat) (nats2:list nat),
+      dfa_recognize 256 d (List.map byte2token bytes) = Some (n,nats2) -> 
+      exists bytes1, exists pfx1:prefix, exists ins1:instr, exists bytes2,
+        exists pfx2:prefix, exists ins2:instr,
+        in_parser reinsjmp_IAT_or_RET_mask (flat_map byte_explode (bytes1 ++ bytes2))
+        (ins1,ins2) /\
+        in_parser instruction_parser (flat_map byte_explode bytes1) (pfx1,ins1) /\ 
+        in_parser instruction_parser (flat_map byte_explode bytes2) (pfx2,ins2) /\ 
+        n = length (bytes1 ++ bytes2) /\ 
+        bytes = bytes1 ++ bytes2 ++ (List.map nat_to_byte nats2) /\ 
+        reinsjmp_IAT_or_RET_mask_instr pfx1 ins1 pfx2 ins2 = true /\
+        (forall ts3 ts4,
+          (length ts3 < length (bytes1 ++ bytes2))%nat -> 
+          bytes = ts3 ++ ts4 ->
+          forall v0, ~ in_parser reinsjmp_IAT_or_RET_mask (flat_map byte_explode ts3) v0).
+Proof.
+  intros. subst. rewrite build_dfa_eq in H.
+  generalize (dfa_recognize_corr _ _ _ _ H (List.map byte2token bytes)
+    (bytesLt256 _)). clear H. rewrite H0. clear H0. mysimp.
+  generalize (byte2token_app _ _ _ H). t. subst.
+  rewrite (nat2bools_byte2token_is_byte_explode _) in H1.
+  generalize (reinsjmp_IAT_or_RET_parser_splits _ H1). clear H1. t. destruct x0. simpl in *.
+  exists x. exists (mkPrefix None None false false). exists i.
+  exists x3. exists (mkPrefix None None false false). exists i0. split.
+  rewrite flat_map_app. unfold reinsjmp_IAT_or_RET_p.
+  econstructor. eauto. eexact H3. reflexivity. reflexivity.
+  split. apply (reinsjmp_IAT_or_RET_mask_subset H1). split. eapply (reinsjmp_IAT_jump_subset H3). 
+  split. rewrite H0. rewrite map_length. auto. split. subst. rewrite app_assoc.
+  assert (x2 = List.map nat_to_byte (List.map byte2token x2)) ; [ idtac | congruence].
+  rewrite n2bs. auto. split. eapply reinsjmp_IAT_or_RET_parser_inv ; eauto.
+  intros. rewrite H0 in H2. specialize (H2 (List.map byte2token ts3)
+  (List.map byte2token ts4)). repeat rewrite map_length in H2.
+  specialize (H2 H4). subst. rewrite H5 in H2. rewrite map_app in H2.
+  specialize (H2 (eq_refl _)). rewrite nat2bools_byte2token_is_byte_explode in H2.
+  intro. apply (H2 v0 H0).
 Qed.
 
 Lemma flat_map_nil_is_nil x : 
@@ -360,9 +437,9 @@ Proof.
   specialize (H0 bytes1 bytes2 (pfx,ins) (eq_refl _)). contradiction.
 Qed.
 
-Lemma nacljmp_dfa_corr : 
+Lemma reinsjmp_nonIAT_dfa_corr : 
   forall (d:DFA),
-    abstract_build_dfa 256 nat2bools 400 (par2rec (alts nacljmp_mask)) = Some d -> 
+    abstract_build_dfa 256 nat2bools 400 (par2rec reinsjmp_nonIAT_mask) = Some d -> 
     forall (bytes:list int8) (n:nat) (nats2:list nat),
       dfa_recognize 256 d (List.map byte2token bytes) = Some (n, nats2) -> 
       exists bytes1, exists pfx1:prefix, exists ins1:instr, exists bytes2,
@@ -370,12 +447,33 @@ Lemma nacljmp_dfa_corr :
         simple_parse bytes = Some ((pfx1,ins1), bytes2 ++ List.map nat_to_byte nats2) /\
         simple_parse (bytes2 ++ List.map nat_to_byte nats2) = 
             Some ((pfx2,ins2), List.map nat_to_byte nats2) /\
-        nacljmp_mask_instr pfx1 ins1 pfx2 ins2 = true /\
+        reinsjmp_nonIAT_mask_instr pfx1 ins1 pfx2 ins2 = true /\
         n = length (bytes1 ++ bytes2) /\ 
         bytes = bytes1 ++ bytes2 ++ (List.map nat_to_byte nats2).
 Proof.
   intros d H bytes n nats2 H1.
-  generalize (@nacljmp_dfa_corr1 d H bytes n nats2 H1). t.
+  generalize (@reinsjmp_nonIAT_dfa_corr1 d H bytes n nats2 H1). t.
+  exists x. exists x0. exists x1. exists x2. exists x3. exists x4. repeat split ; auto.
+  rewrite H5. eapply in_parser_implies_simple_parse ; auto.
+  eapply in_parser_implies_simple_parse ; auto.
+Qed.
+
+Lemma reinsjmp_IAT_or_RET_dfa_corr : 
+  forall (d:DFA),
+    abstract_build_dfa 256 nat2bools 400 (par2rec reinsjmp_IAT_or_RET_mask) = Some d -> 
+    forall (bytes:list int8) (n:nat) (nats2:list nat),
+      dfa_recognize 256 d (List.map byte2token bytes) = Some (n, nats2) -> 
+      exists bytes1, exists pfx1:prefix, exists ins1:instr, exists bytes2,
+        exists pfx2:prefix, exists ins2:instr,
+        simple_parse bytes = Some ((pfx1,ins1), bytes2 ++ List.map nat_to_byte nats2) /\
+        simple_parse (bytes2 ++ List.map nat_to_byte nats2) = 
+            Some ((pfx2,ins2), List.map nat_to_byte nats2) /\
+        reinsjmp_IAT_or_RET_mask_instr pfx1 ins1 pfx2 ins2 = true /\
+        n = length (bytes1 ++ bytes2) /\ 
+        bytes = bytes1 ++ bytes2 ++ (List.map nat_to_byte nats2).
+Proof.
+  intros d H bytes n nats2 H1.
+  generalize (@reinsjmp_IAT_or_RET_dfa_corr1 d H bytes n nats2 H1). t.
   exists x. exists x0. exists x1. exists x2. exists x3. exists x4. repeat split ; auto.
   rewrite H5. eapply in_parser_implies_simple_parse ; auto.
   eapply in_parser_implies_simple_parse ; auto.
