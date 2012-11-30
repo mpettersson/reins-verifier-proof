@@ -177,7 +177,17 @@ Proof.
   unfold reg, field ; destruct r ; simpl ; intros ; repeat pinv ; 
   repeat econstructor ; eauto.
 Qed.
+
 Lemma mask_parser s : 
+  in_parser (int32_p safeMask) s tt -> 
+  in_parser (word @ (fun w : int32 => Imm_op w %% operand_t)) s (Imm_op safeMask).
+Proof.
+  unfold word. unfold byte. unfold field. unfold int32_p. simpl. intros.
+  repeat pinv. repeat econstructor. repeat rewrite <- app_assoc.
+  repeat rewrite -> app_nil_l. eexists. vm_compute. reflexivity.
+Qed.
+
+Lemma mask_parser' s : 
   in_parser (int32_p safeMask) s tt -> 
   in_parser word s safeMask.
 Proof.
@@ -186,33 +196,8 @@ Proof.
   repeat rewrite -> app_nil_l. eexists. vm_compute. reflexivity.
 Qed.
 
-(*
-Lemma nacl_mask_subset r s i : 
-  in_parser (nacl_MASK_p r) s i -> 
-  in_parser instruction_parser s (mkPrefix None None false false, i).
-Proof.
-  unfold nacl_MASK_p. intros.
-  unfold instruction_parser. unfold instruction_parser_list. eapply in_alts_app.
-  left. eapply in_map_alts. replace s with (nil ++ s) ; auto. econstructor ; eauto.
-  unfold prefix_parser_nooverride. unfold option_perm2. econstructor ; eauto.
-  eapply Alt_left_pi. econstructor ; eauto. auto. unfold instr_parsers_nosize_pre.
-  simpl. repeat  match goal with 
-      | [ |- in_parser ((AND_p _) |+| _) _ _ ] => eapply Alt_left_pi 
-      | [ |- in_parser (_ |+| _) _ _ ] => eapply Alt_right_pi
-    end.
-  unfold AND_p. unfold logic_or_arith_p. eapply Alt_right_pi. eapply Alt_left_pi.
-  unfold bitsleft in H. repeat 
-  match goal with 
-    | [ H : in_parser (_ @ _) _ _ |- _ ] => generalize (inv_map_pi H) ; clear H ; t
-    | [ H : in_parser (_ $ _) _ _ |- _ ] => generalize (inv_cat_pi H) ; clear H ; t
-  end ; subst.
-  econstructor. econstructor. econstructor. eauto. econstructor. econstructor.
-  eauto. econstructor. econstructor. eauto. econstructor. econstructor. eauto.
-  econstructor. eapply reg_parser. destruct x21. eauto. eapply mask_parser.
-  destruct x22. eauto. eauto. eauto. eauto. eauto. eauto. eauto. eauto.
-  eauto. eauto. eauto. eauto. eauto. eauto. eauto. simpl. auto.
-Qed.
 
+(*
 Lemma nacl_jump_subset r s i : 
   in_parser (nacl_JMP_p r |+| nacl_CALL_p r) s i -> 
   in_parser instruction_parser s (mkPrefix None None false false, i).
@@ -267,18 +252,124 @@ Proof.
 Qed.
 *)
 
+
 Lemma reinsjmp_nonIAT_mask_subset r s i : 
   in_parser (reins_nonIAT_MASK_p r) s i -> 
   in_parser instruction_parser s (mkPrefix None None false false, i).
-Admitted.
+Proof.
+  unfold reins_nonIAT_MASK_p. intros.
+  unfold instruction_parser. unfold instruction_parser_list. eapply in_alts_app.
+  left. eapply in_map_alts. replace s with (nil ++ s) ; auto. econstructor ; eauto.
+  unfold prefix_parser_nooverride. unfold option_perm2. econstructor ; eauto.
+  eapply Alt_left_pi. econstructor ; eauto. auto. unfold instr_parsers_nosize_pre.
+  simpl. repeat  match goal with 
+      | [ |- in_parser ((AND_p _) |+| _) _ _ ] => eapply Alt_left_pi 
+      | [ |- in_parser (_ |+| _) _ _ ] => eapply Alt_right_pi
+    end.
+  unfold AND_p. unfold logic_or_arith_p. eapply Alt_right_pi. eapply Alt_right_pi.
+  eapply Alt_right_pi. eapply Alt_left_pi.
+  unfold bitsleft in H. repeat 
+  match goal with 
+    | [ H : in_parser (_ @ _) _ _ |- _ ] => generalize (inv_map_pi H) ; clear H ; t
+    | [ H : in_parser (_ $ _) _ _ |- _ ] => generalize (inv_cat_pi H) ; clear H ; t
+  end ; subst.
+  econstructor. econstructor. econstructor. eauto. econstructor. econstructor.
+  eauto. econstructor. econstructor. eauto. econstructor. econstructor. eauto.
+  econstructor. eapply reg_parser. destruct x21. eauto. unfold imm_op.
+  simpl. eapply mask_parser. 
+  destruct x22. eauto. eauto. eauto. eauto. eauto. eauto. eauto. eauto.
+  eauto. eauto. eauto. eauto. eauto. eauto. eauto. simpl. auto.
+Qed.
 
-Lemma reinsjmp_nonIAT_jump_subset r s i : 
-  in_parser (reins_nonIAT_JMP_p r |+| reins_nonIAT_CALL_p r) s i -> 
-  in_parser instruction_parser s (mkPrefix None None false false, i).
-Admitted.
+
+Lemma in_any_char :
+  forall s c i,
+    in_parser (Char_p c) s i ->
+    in_parser Any_p s i.
+Proof.
+  intros. pinv. eauto.
+Qed.
+
+Lemma in_any_char2 :
+  forall s c1 c2 i,
+    in_parser (Cat_p (Char_p c1) (Cat_p (Char_p c2) Eps_p)) s i ->
+    in_parser (Cat_p Any_p (Cat_p Any_p Eps_p)) s i.
+Proof.
+  intros. repeat pinv.
+  econstructor ; eauto.
+Qed.
+
+
+
+Definition string_to_register (str : string) : register :=
+  match str with
+  | "000"%string => EAX
+  | "001"%string => ECX
+  | "010"%string => EDX
+  | "011"%string => EBX
+  | "100"%string => ESP
+  | "101"%string => EBP
+  | "110"%string => ESI
+  | "111"%string => EDI
+  | _ => EAX
+  end.
+
+Lemma bits_bitslist :
+  forall str s i c1 c2 c3,
+    c1 = "0" \/ c1 = "1" ->
+    c2 = "0" \/ c2 = "1" ->
+    c3 = "0" \/ c3 = "1" ->
+    str = String c1 (String c2 (String c3 EmptyString)) ->
+    in_parser (bits str) s i ->
+    in_parser (bitslist (register_to_bools (string_to_register str))) s tt.
+Proof.
+  intros. repeat pinv ; psimp ; repeat pinv ; simpl ;
+        repeat (econstructor ; econstructor ; eauto).
+Qed.
 
 Lemma reinsjmp_IAT_or_RET_mask_subset s i : 
   in_parser (reins_IAT_or_RET_MASK_p) s i -> 
+  in_parser instruction_parser s (mkPrefix None None false false, i).
+Proof.
+  unfold reins_IAT_or_RET_MASK_p. intros.
+  unfold instruction_parser. unfold instruction_parser_list. eapply in_alts_app.
+  left. eapply in_map_alts. replace s with (nil ++ s) ; auto. econstructor ; eauto.
+  unfold prefix_parser_nooverride. unfold option_perm2. econstructor ; eauto.
+  eapply Alt_left_pi. econstructor ; eauto. auto. unfold instr_parsers_nosize_pre.
+  simpl. repeat  match goal with 
+      | [ |- in_parser ((AND_p _) |+| _) _ _ ] => eapply Alt_left_pi 
+      | [ |- in_parser (_ |+| _) _ _ ] => eapply Alt_right_pi
+    end.
+  unfold AND_p. unfold logic_or_arith_p. eapply Alt_right_pi. eapply Alt_right_pi.
+  eapply Alt_right_pi. eapply Alt_right_pi. eapply Alt_right_pi. eapply Alt_right_pi.
+  eapply Alt_right_pi. eapply Alt_right_pi.
+  unfold bitsleft in H. repeat 
+  match goal with 
+    | [ H : in_parser (_ @ _) _ _ |- _ ] => generalize (inv_map_pi H) ; clear H ; t
+    | [ H : in_parser (_ $ _) _ _ |- _ ] => generalize (inv_cat_pi H) ; clear H ; t
+  end ; subst.
+  econstructor. econstructor. econstructor. eauto. econstructor. econstructor.
+  eauto. econstructor. econstructor. econstructor. econstructor. eexact H11.
+  econstructor. eexact H15. unfold rm00. eapply Alt_right_pi. eapply Alt_left_pi.
+  econstructor. econstructor. eexact H19. econstructor. econstructor. econstructor.
+  econstructor. econstructor. unfold bits in H23. simpl in H23. unfold field'.
+  eapply in_any_char2. eauto. eauto. eauto. eapply reg_parser.
+  apply bits_bitslist with
+     (str := "100"%string) (c1 := "1") (c2 := "0") (c3 := "0")
+     (i := x33). auto. auto. auto. reflexivity. eexact H27.
+  eauto. eauto. eauto. econstructor. eapply Alt_right_pi. eapply Alt_right_pi.
+  eapply Alt_right_pi. eapply Alt_right_pi. eapply Alt_left_pi. eexact H30.
+  eauto. eauto. eauto. eauto. eauto. eauto. eauto. eauto. eauto. eauto. simpl. eauto.
+  econstructor. eapply mask_parser'. destruct x38. eexact H31.
+  eauto. eauto. eauto. eauto. eauto. eauto. repeat rewrite <- app_assoc.
+  reflexivity. eauto. eauto. simpl. 
+  assert (x37 = (true, (false, (false, tt)))).
+  unfold bits in H30. simpl in H30. repeat pinv. reflexivity. rewrite -> H. simpl. reflexivity.
+  
+Qed.
+
+Lemma reinsjmp_nonIAT_jump_subset r s i : 
+  in_parser (reins_nonIAT_JMP_p r |+| reins_nonIAT_CALL_p r) s i -> 
   in_parser instruction_parser s (mkPrefix None None false false, i).
 Admitted.
 

@@ -227,7 +227,7 @@ Definition reins_IAT_or_RET_MASK_p : parser instruction_t :=
     "00" $$ "100" $$ "100" $$
     "00" $$ "100" $$ bits "100"
     $ int32_p safeMask
-    @ (fun _ => AND true (Reg_op ESP) (Imm_op safeMask)
+    @ (fun _ => AND true (Address_op {| addrDisp := Word.repr 0; addrBase := Some ESP; addrIndex := None |}) (Imm_op safeMask)
       %% instruction_t).
 
 (* Jumps/calls that do not target the IAT must be of the form
