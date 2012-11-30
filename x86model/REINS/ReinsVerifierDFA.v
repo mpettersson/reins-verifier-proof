@@ -457,10 +457,12 @@ Definition reinsjmp_nonIAT_mask_instr (pfx1:prefix) (ins1:instr) (pfx2:prefix) (
 Definition reinsjmp_IAT_or_RET_mask_instr (pfx1:prefix) (ins1:instr) (pfx2:prefix) (ins2:instr) :=
   no_prefix pfx1 && no_prefix pfx2 && 
   match ins1 with
-    | AND true (Reg_op ESP) (Imm_op wd) => 
+    | AND true (Address_op {| addrDisp := w; addrBase := Some ESP; addrIndex := None |}) (Imm_op wd) => 
+      Word.eq w (Word.repr 0) &&
       zeq (Word.signed wd) (Word.signed safeMask) &&
       match ins2 with 
         | JMP true true (Address_op _) None => true
+        | RET _ _ => true
         | _ => false
       end
     | _ => false

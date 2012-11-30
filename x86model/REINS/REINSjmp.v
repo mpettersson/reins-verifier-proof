@@ -392,11 +392,11 @@ Qed.
 
 Lemma reinsjmp_IAT_or_RET_parser_inv s1 s2 i1 i2:
   in_parser (reins_IAT_or_RET_MASK_p) s1 i1 ->
-  in_parser (reins_IAT_JMP_p) s2 i2 ->
+  in_parser (reins_IAT_JMP_p |+| RET_p) s2 i2 ->
   reinsjmp_IAT_or_RET_mask_instr (mkPrefix None None false false) i1
                         (mkPrefix None None false false) i2 = true.
 Proof.
-  unfold reins_IAT_or_RET_MASK_p, reins_IAT_JMP_p ; intros.
+  unfold reins_IAT_or_RET_MASK_p, reins_IAT_JMP_p, RET_p. intros.
   repeat pinv ; unfold reinsjmp_IAT_or_RET_mask_instr ; simpl ; auto.
 Qed.
 
@@ -459,20 +459,34 @@ Lemma reinsjmp_IAT_or_RET_dfa_corr1 :
           bytes = ts3 ++ ts4 ->
           forall v0, ~ in_parser reinsjmp_IAT_or_RET_mask (flat_map byte_explode ts3) v0).
 Proof.
-  intros. subst. rewrite build_dfa_eq in H.
+  intros. rewrite build_dfa_eq in H.
   generalize (dfa_recognize_corr _ _ _ _ H (List.map byte2token bytes)
-    (bytesLt256 _)). clear H. rewrite H0. clear H0. mysimp.
+    (bytesLt256 _)). clear H.
+  rewrite H0. clear H0. mysimp.
   generalize (byte2token_app _ _ _ H). t. subst.
   rewrite (nat2bools_byte2token_is_byte_explode _) in H1.
-  generalize (reinsjmp_IAT_or_RET_parser_splits _ H1). clear H1. t. destruct x0. simpl in *.
+  generalize (reinsjmp_IAT_or_RET_parser_splits _ H1). clear H1. t.
+  destruct x0. simpl in *.
+
   exists x. exists (mkPrefix None None false false). exists i.
-  exists x3. exists (mkPrefix None None false false). exists i0. split.
-  rewrite flat_map_app. unfold reinsjmp_IAT_or_RET_p.
-  econstructor. eauto. eexact H3. reflexivity. reflexivity.
-  split. apply (reinsjmp_IAT_or_RET_mask_subset H1). split. eapply (reinsjmp_IAT_jump_subset H3). 
-  split. rewrite H0. rewrite map_length. auto. split. subst. rewrite app_assoc.
-  assert (x2 = List.map nat_to_byte (List.map byte2token x2)) ; [ idtac | congruence].
-  rewrite n2bs. auto. split. eapply reinsjmp_IAT_or_RET_parser_inv ; eauto.
+    exists x3. exists (mkPrefix None None false false). exists i0.
+
+  split. rewrite flat_map_app. econstructor. eauto. eexact H3.
+    reflexivity. reflexivity.
+
+  split. apply (reinsjmp_IAT_or_RET_mask_subset H1).
+
+  split. eapply (reinsjmp_IAT_jump_subset H3). 
+
+  split. rewrite H0. rewrite map_length. reflexivity.
+
+  split. subst. rewrite app_assoc.
+    assert (x2 = List.map nat_to_byte (List.map byte2token x2))
+    ; [ idtac | congruence].
+    rewrite n2bs. reflexivity.
+
+  split. eapply reinsjmp_IAT_or_RET_parser_inv ; eauto.
+
   intros. rewrite H0 in H2. specialize (H2 (List.map byte2token ts3)
   (List.map byte2token ts4)). repeat rewrite map_length in H2.
   specialize (H2 H4). subst. rewrite H5 in H2. rewrite map_app in H2.
