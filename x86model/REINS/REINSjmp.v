@@ -197,62 +197,6 @@ Proof.
 Qed.
 
 
-(*
-Lemma nacl_jump_subset r s i : 
-  in_parser (nacl_JMP_p r |+| nacl_CALL_p r) s i -> 
-  in_parser instruction_parser s (mkPrefix None None false false, i).
-Proof.
-  intros. unfold instruction_parser. unfold instruction_parser_list. eapply in_alts_app.
-  left. eapply in_map_alts. replace s with (nil ++ s) ; auto. econstructor ; eauto.
-  unfold prefix_parser_nooverride, option_perm2. econstructor ; eauto.
-  eapply Alt_left_pi ; eauto. econstructor ; eauto. auto.
-  unfold instr_parsers_nosize_pre. simpl. repeat pinv.
-  repeat match goal with 
-           | [ |- in_parser (JMP_p |+| _) _ _ ] => eapply Alt_left_pi
-           | [ |- in_parser (_ |+| _) _ _ ] => eapply Alt_right_pi
-         end. 
-  unfold nacl_JMP_p, JMP_p in *. eapply Alt_right_pi. eapply Alt_right_pi.
-  eapply Alt_left_pi. unfold bitsleft in H. repeat
-  match goal with 
-    | [ H : in_parser (_ @ _) _ _ |- _ ] => generalize (inv_map_pi H) ; clear H ; t
-    | [ H : in_parser (_ $ _) _ _ |- _ ] => generalize (inv_cat_pi H) ; clear H ; t
-  end ; subst.
-  econstructor. econstructor. econstructor. eapply H3. econstructor. econstructor.
-  eauto. unfold ext_op_modrm2. econstructor. repeat eapply Alt_right_pi.
-  econstructor. eauto. econstructor. eauto. unfold rm11. econstructor.
-  eapply reg_parser. destruct x18. eauto. eauto. eauto. eauto. eauto. eauto.
-  eauto. eauto. eauto. eauto. auto. eauto. eauto. simpl. auto.
-  repeat match goal with 
-           | [ |- in_parser (CALL_p |+| _) _ _ ] => eapply Alt_left_pi
-           | [ |- in_parser (_ |+| _) _ _ ] => eapply Alt_right_pi
-         end. 
-  unfold nacl_CALL_p, CALL_p in *. eapply Alt_right_pi. 
-  eapply Alt_left_pi. unfold bitsleft in H. repeat
-  match goal with 
-    | [ H : in_parser (_ @ _) _ _ |- _ ] => generalize (inv_map_pi H) ; clear H ; t
-    | [ H : in_parser (_ $ _) _ _ |- _ ] => generalize (inv_cat_pi H) ; clear H ; t
-  end ; subst.
-  econstructor. econstructor. econstructor. eapply H3. econstructor. econstructor.
-  eauto. unfold ext_op_modrm2. econstructor. repeat eapply Alt_right_pi.
-  econstructor. eauto. econstructor. eauto. unfold rm11. econstructor.
-  eapply reg_parser. destruct x18. eauto. eauto. eauto. eauto. eauto. eauto.
-  eauto. eauto. eauto. eauto. auto. eauto. eauto. simpl. auto.
-Qed.
-
-Lemma nacl_jmp_parser_inv r s1 s2 i1 i2: 
-  r <> ESP -> 
-  in_parser (nacl_MASK_p r) s1 i1 -> 
-  in_parser (nacl_JMP_p r |+| nacl_CALL_p r) s2 i2 -> 
-  nacljmp_mask_instr (mkPrefix None None false false) i1 
-                     (mkPrefix None None false false) i2 = true.
-Proof.
-  unfold nacl_MASK_p, nacl_JMP_p, nacl_CALL_p ; intros. 
-  repeat pinv ; unfold nacljmp_mask_instr ; simpl ; destruct (register_eq_dec r ESP) ; 
-  try congruence ; destruct (register_eq_dec r r) ; try congruence ; auto.
-Qed.
-*)
-
-
 Lemma reinsjmp_nonIAT_mask_subset r s i : 
   in_parser (reins_nonIAT_MASK_p r) s i -> 
   in_parser instruction_parser s (mkPrefix None None false false, i).
@@ -368,15 +312,91 @@ Proof.
   
 Qed.
 
+
 Lemma reinsjmp_nonIAT_jump_subset r s i : 
   in_parser (reins_nonIAT_JMP_p r |+| reins_nonIAT_CALL_p r) s i -> 
   in_parser instruction_parser s (mkPrefix None None false false, i).
-Admitted.
+Proof.
+  intros. unfold instruction_parser. unfold instruction_parser_list. eapply in_alts_app.
+  left. eapply in_map_alts. replace s with (nil ++ s) ; auto. econstructor ; eauto.
+  unfold prefix_parser_nooverride, option_perm2. econstructor.
+  eapply Alt_left_pi. econstructor ; eauto. reflexivity.
+  unfold instr_parsers_nosize_pre. simpl. repeat pinv.
+  repeat match goal with 
+           | [ |- in_parser (JMP_p |+| _) _ _ ] => eapply Alt_left_pi
+           | [ |- in_parser (_ |+| _) _ _ ] => eapply Alt_right_pi
+         end. 
+  unfold reins_nonIAT_JMP_p, JMP_p in *. eapply Alt_right_pi. eapply Alt_right_pi.
+  eapply Alt_left_pi. unfold bitsleft in H. repeat
+  match goal with 
+    | [ H : in_parser (_ @ _) _ _ |- _ ] => generalize (inv_map_pi H) ; clear H ; t
+    | [ H : in_parser (_ $ _) _ _ |- _ ] => generalize (inv_cat_pi H) ; clear H ; t
+  end ; subst.
+  econstructor. econstructor. econstructor. eexact H3.
+  econstructor. econstructor. eexact H7.
+  unfold ext_op_modrm2. econstructor. repeat eapply Alt_right_pi.
+    econstructor. eexact H11.
+  econstructor. eexact H14.
+  unfold rm11. econstructor. eapply reg_parser. destruct x18.
+  eexact H15. eauto. eauto. eauto. eauto. eauto.
+  eauto. eauto. eauto. eauto. auto. eauto. eauto. simpl. reflexivity.
+  repeat match goal with 
+           | [ |- in_parser (CALL_p |+| _) _ _ ] => eapply Alt_left_pi
+           | [ |- in_parser (_ |+| _) _ _ ] => eapply Alt_right_pi
+         end. 
+  unfold reins_nonIAT_CALL_p, CALL_p in *. eapply Alt_right_pi.
+  eapply Alt_left_pi. unfold bitsleft in H. repeat
+  match goal with 
+    | [ H : in_parser (_ @ _) _ _ |- _ ] => generalize (inv_map_pi H) ; clear H ; t
+    | [ H : in_parser (_ $ _) _ _ |- _ ] => generalize (inv_cat_pi H) ; clear H ; t
+  end ; subst.
+  econstructor. econstructor. econstructor. eexact H3.
+  econstructor. econstructor. eexact H7.
+  unfold ext_op_modrm2. econstructor. repeat eapply Alt_right_pi.
+    econstructor. eexact H11.
+  econstructor. eexact H14.
+  unfold rm11. econstructor. eapply reg_parser. destruct x18.
+  eexact H15. eauto. eauto. eauto. eauto. eauto.
+  eauto. eauto. eauto. eauto. auto. eauto. eauto. simpl. reflexivity.
+Qed.
 
-Lemma reinsjmp_IAT_jump_subset s i : 
+Lemma reinsjmp_IAT_or_RET_jump_subset s i : 
   in_parser (reins_IAT_JMP_p |+| RET_p) s i -> 
   in_parser instruction_parser s (mkPrefix None None false false, i).
-Admitted.
+Proof.
+  intros. unfold instruction_parser. unfold instruction_parser_list. eapply in_alts_app.
+  left. eapply in_map_alts. replace s with (nil ++ s) ; auto. econstructor ; eauto.
+  unfold prefix_parser_nooverride, option_perm2. econstructor.
+  eapply Alt_left_pi. econstructor ; eauto. reflexivity.
+  unfold instr_parsers_nosize_pre. simpl. repeat pinv.
+
+  repeat match goal with 
+           | [ |- in_parser (JMP_p |+| _) _ _ ] => eapply Alt_left_pi
+           | [ |- in_parser (_ |+| _) _ _ ] => eapply Alt_right_pi
+         end. 
+  unfold reins_IAT_JMP_p, JMP_p in *. eapply Alt_right_pi. eapply Alt_right_pi.
+  eapply Alt_left_pi. unfold bitsleft in H. repeat
+  match goal with 
+    | [ H : in_parser (_ @ _) _ _ |- _ ] => generalize (inv_map_pi H) ; clear H ; t
+    | [ H : in_parser (_ $ _) _ _ |- _ ] => generalize (inv_cat_pi H) ; clear H ; t
+  end ; subst.
+  econstructor. econstructor. econstructor. eexact H3.
+  econstructor. econstructor. eexact H7.
+  unfold ext_op_modrm2. econstructor. eapply Alt_left_pi.
+    econstructor. eexact H11.
+  econstructor. eexact H15.
+  unfold rm00. eapply Alt_right_pi. eapply Alt_right_pi. eapply Alt_right_pi.
+  econstructor. econstructor. eexact H19.
+  eexact H20. eauto. eauto. eauto. eauto. eauto.
+  eauto. eauto. eauto. eauto. eauto. eauto. eauto.
+  eauto. eauto. eauto.
+
+  repeat match goal with 
+           | [ |- in_parser (RET_p |+| _) _ _ ] => eapply Alt_left_pi
+           | [ |- in_parser (_ |+| _) _ _ ] => eapply Alt_right_pi
+         end.
+  exact H.
+Qed.
 
 Lemma reinsjmp_nonIAT_parser_inv r s1 s2 i1 i2:
   r <> ESP ->
@@ -476,7 +496,7 @@ Proof.
 
   split. apply (reinsjmp_IAT_or_RET_mask_subset H1).
 
-  split. eapply (reinsjmp_IAT_jump_subset H3). 
+  split. eapply (reinsjmp_IAT_or_RET_jump_subset H3). 
 
   split. rewrite H0. rewrite map_length. reflexivity.
 
