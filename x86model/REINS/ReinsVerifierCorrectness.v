@@ -54,7 +54,7 @@ Require Import Int32.
 Require Import ReinsVerifierDFA.
 Require Import ReinsVerifier.
 Require Import ReinsDFACorrectness.
-Require Import Reinsjmp.
+Require Import REINSjmp.
 
 
 Import X86_PARSER_ARG.
@@ -70,7 +70,7 @@ Require Import Omega.
 
 Definition emptyPrefix := mkPrefix None None false false.
 
-Module Int32SetFacts := Coq.MSets.MSetFacts.Facts FastVerifier.Int32Set.
+Module Int32SetFacts := Coq.MSets.MSetFacts.Facts ReinsVerifier.Int32Set.
 
 (* Todo: organize the following *)
 
@@ -92,6 +92,7 @@ Proof. intros; apply Znumtheory.Zmod_div_mod.
     apply chunkSize_divide_modulus.
 Qed.
 
+(* if you have two aligned integers, then their sum is also aligned *)
 Lemma aligned_plus :
   forall a b:int32, aligned a -> aligned b -> aligned (a +32 b).
 Proof. unfold aligned, aligned_bool. intros a b H1 H2.
@@ -134,6 +135,7 @@ Proof. unfold aligned, aligned_bool.
   apply Zmod_0_l.
 Qed.
 
+(* tactic to apply all of these aligned lemmas *)
 Ltac aligned_tac := 
   match goal with
     | [ |- aligned (?a +32 ?b)] => 
@@ -147,6 +149,7 @@ Ltac aligned_tac :=
     | _ => idtac
   end.
 
+(* If Z is aligned, the chunksize divides Z *)
 Lemma aligned_zdivide :
   forall z:Z, aligned (repr z) ->  Znumtheory.Zdivide chunkSize z.
 Proof. unfold aligned, aligned_bool. intros a H; apply Zeq_is_eq_bool in H.
@@ -154,10 +157,12 @@ Proof. unfold aligned, aligned_bool. intros a H; apply Zeq_is_eq_bool in H.
   simpl in H. rewrite <- Zmod_mod_modulus_chunkSize in H. trivial.
 Qed.
 
+(* CHANGE Need to put the value of our safeMask here *)
 Lemma signed_safemask_eq :
   signed (safeMask) =  - 32.
 Proof. compute. trivial. Qed.
 
+(* if you AND any address with safeMask, you will get an aligned address *)
 Lemma and_safeMask_aligned : forall (v wd: int32),
   signed wd = signed safeMask -> aligned (Word.and v wd).
 Proof. intros.
@@ -184,6 +189,8 @@ Qed.
 
 (** * proving checkAligned is correct *)
 
+(* Unfolding checkAligned, 
+   checks that all multiple of the chunk size is in the list *)
 Lemma checkAligned_aux_unfold (startAddrs:Int32Set.t)(next:Z)(len:nat) :
     checkAligned_aux (startAddrs, next, len) = 
     match len with
@@ -259,6 +266,7 @@ Qed.
 
 Section VERIFIER_CORR.
 
+  (* CHANGE *)
   Variable non_cflow_dfa : DFA.
   Variable dir_cflow_dfa : DFA.
   Variable nacljmp_dfa : DFA.
@@ -330,6 +338,8 @@ Section VERIFIER_CORR.
 
   (** Check (1) segments do not wrap around the 32-bit address space;
       (2) code segment is disjoint from stack and data segments; *)
+  (* C-Code, D-Data, S-Stack, E- , G- *)
+  (* CHANGE : check whether changed segments are allowed in Reins *)
   Definition checkSegments (s: rtl_state) := 
     (checkNoOverflow (CStart s) (CLimit s) &&
       checkNoOverflow (DStart s) (DLimit s) &&
