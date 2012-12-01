@@ -366,6 +366,7 @@ Section VERIFIER_CORR.
       checkSegments s = true.
 
   (* The invariant that should be satisfied between pseudo instructions*)
+  (* CHANGE *)
   Definition safeState (s:rtl_state) (inv:Inv) :=
     let (sregs, code) := inv in 
     let cpRes := checkProgram code in
@@ -393,6 +394,7 @@ Section VERIFIER_CORR.
 
   (* An equivalence relation between states that says the code
      region is immutable *)
+  (* Checks that two code regions are equal *)
   Definition eqCodeRegion (s s':rtl_state) :=
     CStart s = CStart s' /\ CLimit s = CLimit s' /\
     noOverflow ((CStart s)::(CLimit s)::nil) /\
@@ -409,9 +411,11 @@ Section VERIFIER_CORR.
     (startAddrs: Int32Set.t) (codeSize:nat) :=
     Int32Set.In default_pc startAddrs \/ default_pc = int32_of_nat codeSize.
 
+  (* Checks whether target is in startAddrs or is aligned *)
   Definition goodJmpTarget (target:int32) (startAddrs: Int32Set.t) :=
     Int32Set.mem target startAddrs  || aligned_bool target.
 
+  (* Direct jumps, checking if they are good *)
   Definition goodJmp (ins:instr) (default_pc:int32) (startAddrs: Int32Set.t) := 
     match ins with
       | JMP true false (Imm_op disp) None => 
@@ -530,12 +534,15 @@ Section VERIFIER_CORR.
   Qed.
 
   (** ** Properties of codeLoaded *)
+  (* Our code segment will not be greater than 2^32 *) 
   Lemma codeLoaded_length : forall code s,
     codeLoaded code s -> Z_of_nat (length code) <= w32modulus.
   Proof. unfold codeLoaded. intros.
     destruct H. int32_prover.
   Qed.
 
+  (* If RTL state has code segment loaded, basically says it resides in memory *)
+  (* If you find the ith element in code list, it's also in memory *)
   Lemma codeLoaded_lookup : forall code s i,
     codeLoaded code s -> (i < length code)%nat
       -> nth i code Word.zero = AddrMap.get (CStart s +32_n i) (rtl_memory s).
@@ -546,6 +553,7 @@ Section VERIFIER_CORR.
 
 
   (** ** Properties of dfa_recognize *)
+  (*  *)
   Local Ltac dfaprover :=
      simtuition ltac:(auto with *); autorewrite with dfaRecDB in *;
        rewriter; simtuition ltac:(auto with *).
@@ -553,6 +561,8 @@ Section VERIFIER_CORR.
   Require Coqlib.
   Hint Rewrite minus_diag : dfaRecDB.
 
+  (* By going thru dfa_loop, you can't consume a negative number of bytes *)
+  (* count1 - count = #of bytes consumed *)
   Lemma dfa_loop_inv : forall numOfTokens dfa ts s count count1 ts1,
       dfa_loop numOfTokens dfa s count ts = Some (count1, ts1) ->
         ts1 = List.skipn (count1-count) ts /\ (count1 >= count)%nat /\
@@ -568,6 +578,7 @@ Section VERIFIER_CORR.
             rewrite Coqlib.skipn_gt_0; dfaprover.
   Qed.
 
+  (* Same invariant, but simpler *)
   Lemma dfa_recognize_inv : forall numOfTokens dfa ts len ts',
       dfa_recognize numOfTokens dfa ts = Some (len, ts')
         -> (ts' = List.skipn len ts /\ length ts = len + length ts')%nat.
@@ -580,7 +591,7 @@ Section VERIFIER_CORR.
   Lemma safeInSomeK_no_fail : forall s inv,
     safeInSomeK s inv -> nextStepNoFail s.
   Proof. unfold safeInSomeK. intros. destruct H as [k H]. destruct k; prover. Qed.
-
+  
   Lemma safeInK_step_dichotomy : forall k s inv s',
     safeInK k s inv -> s ==> s' -> safeState s' inv \/ safeInSomeK s' inv.
   Proof. destruct k. prover.
@@ -600,6 +611,7 @@ Section VERIFIER_CORR.
   Ltac subsetRegion_intro_tac :=
     unfold subsetRegion; bool_intro_tac.
 
+  (* subsetRegion works like it is supposed to *)
   Lemma subsetRegion_sound : forall start1 limit1 start2 limit2,
     noOverflow (start1::limit1::nil) -> noOverflow (start2::limit2::nil)
       -> subsetRegion start1 limit1 start2 limit2 = true
@@ -617,6 +629,9 @@ Section VERIFIER_CORR.
   Qed.
 
   (** ** Properties of checkSegments *)
+  (* If two segments are identical, then if one passes checkSegments *)
+  (* the other does as well *)
+
   Lemma checkSegments_inv : forall (s s':rtl_state),
     Same_Seg_Regs_Rel.brel s s'
       -> checkSegments s = true
@@ -624,6 +639,10 @@ Section VERIFIER_CORR.
   Proof. unfold Same_Seg_Regs_Rel.brel, checkSegments.  intros.
     bool_elim_tac. bool_intro_tac; prover.
   Qed.
+
+  (* RTL A is a transition from one state to another *)
+  (* Given the state monad RTL, by taking a step, you do not change the *)
+  (* segment registers *)
 
   Lemma checkSegments_inv2 : forall (A:Type) (c:RTL A) (s s':rtl_state) (v':A),
     same_seg_regs c
@@ -670,6 +689,7 @@ Section VERIFIER_CORR.
   Qed.
 
   (** ** Properties about eqCodeRegion *)
+  (* Checks that for two RTL states, they have the same code region limits *) 
   Lemma eqCodeRegion_intro : forall s s',
       Same_Seg_Regs_Rel.brel s s'
         -> checkSegments s = true
@@ -705,7 +725,9 @@ Section VERIFIER_CORR.
           apply checkSegments_disj_code_eseg; assumption.
           trivial.
   Qed.
-    
+  
+  (* If a state has good segments, then by taking an RTL step,
+     then the states agree on the same code region *)  
   Lemma eqCodeRegion_intro2 : 
     forall (A:Type) (c:RTL A) (s s':rtl_state) (v':A),
       checkSegments s = true -> c s = (Okay_ans v', s')
@@ -722,13 +744,16 @@ Section VERIFIER_CORR.
       right. right. right. eapply H2. eassumption.
   Qed.
 
+  (* reflexive lemma, the code region of s agrees with the code 
+     region of s *)
   Lemma eqCodeRegion_refl : forall s,
     checkSegments s = true -> eqCodeRegion s s.
   Proof. intros. unfold eqCodeRegion. repeat split; try congruence.
     unfold checkSegments in H. bool_elim_tac.
     apply checkNoOverflow_equiv_noOverflow. assumption.
   Qed.
-
+ 
+  (* Transitivity *)
   Lemma eqCodeRegion_trans : forall s1 s2 s3,
     eqCodeRegion s1 s2 -> eqCodeRegion s2 s3
       -> eqCodeRegion s1 s3.
@@ -743,6 +768,8 @@ Section VERIFIER_CORR.
   (** ** Properties abour parse_instr *)
   Opaque Decode.X86_PARSER.parse_byte.
 
+  (* Give it a chunk of memory and it gives the instruction at that location
+     if you apply 'this' function it will not change the RTL state *)
   Lemma parse_instr_aux_same_state : forall n pc len ps,
     same_rtl_state (parse_instr_aux n pc len ps).
   Proof. unfold same_rtl_state.
@@ -895,6 +922,7 @@ Section VERIFIER_CORR.
 *)
 
   (** a special tactic for performing case analysis over process_buffer_aux *)
+  (* CHANGE *)
   Ltac process_buffer_aux_Sn_tac := 
     match goal with
       | [H: process_buffer_aux ?start (S ?n) ?tokens (?cSA, ?cJT)
