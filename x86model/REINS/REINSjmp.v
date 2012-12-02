@@ -45,13 +45,16 @@ Lemma reinsjmp_nonIAT_parser_splits' :
       in_parser (reins_nonIAT_MASK_p r) s1 (fst v) /\ 
       in_parser (reins_nonIAT_JMP_p r |+| reins_nonIAT_CALL_p r) s2 (snd v).
 Proof.
-  unfold reinsjmp_nonIAT_mask. unfold reinsjmp_nonIAT_p. simpl ; unfold never. intros. 
-  repeat pinv ; simpl ; 
-  econstructor ; econstructor ; econstructor ; repeat split ; eauto ; try congruence ;
-  match goal with 
-    | [ H : in_parser (reins_nonIAT_JMP_p _) _ _ |- _ ] => eapply Alt_left_pi
-    | [ H : in_parser (reins_nonIAT_CALL_p _) _ _ |- _ ] => eapply Alt_right_pi
-  end ; auto.
+  unfold reinsjmp_nonIAT_mask, reinsjmp_nonIAT_p. simpl. unfold never.
+  intros. 
+    repeat pinv;
+      simpl ; 
+      econstructor ; econstructor ; econstructor ;
+      repeat split ; eauto ; try congruence ;
+      match goal with 
+      | [ H : in_parser (reins_nonIAT_JMP_p _) _ _ |- _ ] => eapply Alt_left_pi
+      | [ H : in_parser (reins_nonIAT_CALL_p _) _ _ |- _ ] => eapply Alt_right_pi
+      end ; exact H0.
 Qed.
 
 Lemma reinsjmp_IAT_or_RET_parser_splits' : 
@@ -62,13 +65,15 @@ Lemma reinsjmp_IAT_or_RET_parser_splits' :
       in_parser (reins_IAT_or_RET_MASK_p) s1 (fst v) /\ 
       in_parser (reins_IAT_JMP_p |+| RET_p) s2 (snd v).
 Proof.
-  unfold reinsjmp_IAT_or_RET_mask. unfold reinsjmp_IAT_or_RET_p. simpl ; unfold never. intros. 
-  repeat pinv ; simpl ; 
-  econstructor ; econstructor ; econstructor ; repeat split ; eauto ; try congruence ;
-  match goal with 
-    | [ H : in_parser (reins_IAT_JMP_p) _ _ |- _ ] => eapply Alt_left_pi
-    | [ H : in_parser (RET_p) _ _ |- _ ] => eapply Alt_right_pi
-  end ; auto.
+  unfold reinsjmp_IAT_or_RET_mask, reinsjmp_IAT_or_RET_p. simpl. unfold never.
+    intros. 
+      repeat pinv ; simpl ; 
+      econstructor ; econstructor ; econstructor ;
+      repeat split ; eauto ; try congruence ;
+      match goal with 
+      | [ H : in_parser (reins_IAT_JMP_p) _ _ |- _ ] => eapply Alt_left_pi
+      | [ H : in_parser (RET_p) _ _ |- _ ] => eapply Alt_right_pi
+      end ; exact H0.
 Qed.
 
 Lemma byte_explode_bits b : 
@@ -86,26 +91,36 @@ Lemma split_bytes_n :
     exists b1, exists b2, 
       bs = b1 ++ b2 /\ flat_map byte_explode b1 = x1 /\ flat_map byte_explode b2 = x2.
 Proof.
-  induction n ; simpl ; intros. destruct x1. simpl in *. exists nil. exists bs.
-  simpl. auto. simpl in H0. congruence.
+  induction n ; simpl ; intros.
+  destruct x1. simpl in *. exists nil. exists bs. simpl. auto.
+  simpl in H0. congruence.
 
-  destruct x1. simpl in H0 ; assert False ; [omega | contradiction].
-  destruct x1. simpl in H0 ; assert False ; [omega | contradiction].
-  destruct x1. simpl in H0 ; assert False ; [omega | contradiction].
-  destruct x1. simpl in H0 ; assert False ; [omega | contradiction].
-  destruct x1. simpl in H0 ; assert False ; [omega | contradiction].
-  destruct x1. simpl in H0 ; assert False ; [omega | contradiction].
-  destruct x1. simpl in H0 ; assert False ; [omega | contradiction].
-  destruct x1. simpl in H0 ; assert False ; [omega | contradiction].
-  simpl in H0. assert (length x1 = n*8). omega. destruct bs. simpl in H. congruence.
-  replace (flat_map byte_explode (i :: bs)) with 
-    (byte_explode i ++ flat_map byte_explode bs) in H; auto.
-  generalize (byte_explode_bits i). t. rewrite H2 in *.
-  injection H ; clear H ; intros ; subst.
-  specialize (IHn bs x1 x2 H H1). t. 
-  exists (i::x). exists x0. replace (flat_map byte_explode (i :: x)) with
-  (byte_explode i ++ (flat_map byte_explode x)) ; auto. rewrite H2.
-  split. simpl. rewrite H3. auto. split. rewrite H4. auto. auto.
+  destruct x1. simpl in H0. assert False ; [omega | contradiction].
+  destruct x1. simpl in H0. assert False ; [omega | contradiction].
+  destruct x1. simpl in H0. assert False ; [omega | contradiction].
+  destruct x1. simpl in H0. assert False ; [omega | contradiction].
+  destruct x1. simpl in H0. assert False ; [omega | contradiction].
+  destruct x1. simpl in H0. assert False ; [omega | contradiction].
+  destruct x1. simpl in H0. assert False ; [omega | contradiction].
+  destruct x1. simpl in H0. assert False ; [omega | contradiction].
+
+  simpl in H0. assert (length x1 = n*8). omega.
+  destruct bs.
+    simpl in H. congruence.
+  
+    replace (flat_map byte_explode (i :: bs)) with 
+      (byte_explode i ++ flat_map byte_explode bs) in H; auto.
+    generalize (byte_explode_bits i). t. rewrite H2 in *.
+    injection H . clear H. intros. subst.
+    specialize (IHn bs x1 x2 H H1). t. 
+    exists (i::x). exists x0.
+    replace (flat_map byte_explode (i :: x)) with
+      (byte_explode i ++ (flat_map byte_explode x)) ; auto.
+    rewrite H2. split.
+      simpl. rewrite H3. reflexivity.
+      split.
+        rewrite H4. auto.
+        auto.
 Qed.
 
 Lemma reinsjmp_nonIAT_parser_splits : 
@@ -117,11 +132,16 @@ Lemma reinsjmp_nonIAT_parser_splits :
       in_parser (reins_nonIAT_MASK_p r) (flat_map byte_explode b1) (fst v) /\ 
       in_parser (reins_nonIAT_JMP_p r |+| reins_nonIAT_CALL_p r) (flat_map byte_explode b2) (snd v).
 Proof.
-  intros. generalize (reinsjmp_nonIAT_parser_splits' _ H). t.
-  assert (length x = 48). unfold reins_nonIAT_MASK_p in H2. unfold bitsleft in H2.
-  unfold int32_p in H2. simpl in H2. repeat pinv ; simpl ; auto.
-  generalize (split_bytes_n 6 _ _ _ H1 H4). t. exists x2. exists x3. exists x1.
-  repeat split ; auto. rewrite H6. auto. rewrite H7. auto.
+  intros.
+  generalize (reinsjmp_nonIAT_parser_splits' _ H). t.
+  assert (length x = 48).
+    unfold reins_nonIAT_MASK_p in H2. unfold bitsleft in H2.
+    unfold int32_p in H2. simpl in H2. repeat pinv ; simpl ; auto.
+  generalize (split_bytes_n 6 _ _ _ H1 H4). t.
+    exists x2. exists x3. exists x1.
+    repeat split ; auto.
+      rewrite H6. exact H2.
+      rewrite H7. exact H3.
 Qed.
 
 Lemma reinsjmp_IAT_or_RET_parser_splits : 
@@ -133,10 +153,13 @@ Lemma reinsjmp_IAT_or_RET_parser_splits :
       in_parser (reins_IAT_JMP_p |+| RET_p) (flat_map byte_explode b2) (snd v).
 Proof.
   intros. generalize (reinsjmp_IAT_or_RET_parser_splits' _ H). t.
-  assert (length x = 56). unfold reins_IAT_or_RET_MASK_p in H1. unfold bitsleft in H1.
-  unfold int32_p in H1. simpl in H1. repeat pinv ; simpl ; auto.
+  assert (length x = 56).
+    unfold reins_IAT_or_RET_MASK_p in H1. unfold bitsleft in H1.
+    unfold int32_p in H1. simpl in H1. repeat pinv ; simpl ; auto.
   generalize (split_bytes_n 7 _ _ _ H0 H3). t. exists x1. exists x2.
-  repeat split ; auto. rewrite H5. auto. rewrite H6. auto.
+    repeat split ; auto.
+      rewrite H5. exact H1.
+      rewrite H6. exact H2.
 Qed.
 
 Import CheckDeterministic.
@@ -146,35 +169,47 @@ Lemma byte2token_app xs n1 n2 :
   exists b1, exists b2, 
     xs = b1 ++ b2 /\ List.map byte2token b1 = n1 /\ List.map byte2token b2 = n2.
 Proof.
-  induction xs. simpl. intros. generalize (nil_is_nil_app_nil _ _ H). t. subst.
-  exists nil ; exists nil ; auto.
-  simpl ; intros ; destruct n1. simpl in *. destruct n2 ; try congruence.
-  injection H ; clear H ; intros. specialize (IHxs nil n2 H). t. subst.
-  exists x. exists (a::x0). assert (x = nil). destruct x ; auto. simpl in H2 ; 
-  congruence. subst. simpl. auto. simpl in *. injection H ; clear H ; intros.
-  specialize (IHxs n1 n2 H). t. exists (a::x). exists x0. rewrite H1.
-  split ; auto. simpl. split. rewrite H0. rewrite H2. auto. auto.
+  induction xs.
+    simpl. intros. generalize (nil_is_nil_app_nil _ _ H). t. subst.
+    exists nil. exists nil. auto.
+
+    simpl. intros. destruct n1.
+      simpl in *. destruct n2 ; try congruence.
+      injection H . clear H. intros. specialize (IHxs nil n2 H). t. subst.
+      exists x. exists (a::x0).
+      assert (x = nil).
+        destruct x ; auto. simpl in H2. congruence. subst. simpl. auto.
+     simpl in *. injection H. clear H. intros.
+     specialize (IHxs n1 n2 H). t.
+     exists (a::x). exists x0. rewrite H1.
+     split ; auto. simpl.
+     split.
+       rewrite H0. rewrite H2. reflexivity.
+       exact H3.
 Qed.
 
 Lemma nat2bools_byte2token_is_byte_explode xs : 
   flat_map nat2bools (List.map byte2token xs) = flat_map byte_explode xs.
 Proof.
-  induction xs. auto. replace (flat_map byte_explode (a::xs)) with 
-  (byte_explode a ++ (flat_map byte_explode xs)) ; auto.
-  replace (flat_map nat2bools (List.map byte2token (a::xs))) with
-    (nat2bools (byte2token a) ++ (flat_map nat2bools (List.map byte2token xs))) ; auto.
-  rewrite IHxs. replace (nat2bools (byte2token a)) with (byte_explode a) ; auto.
-  clear IHxs. unfold byte_explode. unfold nat2bools. replace (Z_of_nat (byte2token a))
-  with (Word.unsigned a) ; auto. unfold byte2token.
-  rewrite inj_Zabs_nat. unfold Word.unsigned. generalize (Word.intrange _ a).
-  intros. rewrite (Zabs_eq _).  auto. omega.
+  induction xs.
+    auto.
+    replace (flat_map byte_explode (a::xs)) with 
+      (byte_explode a ++ (flat_map byte_explode xs)) ; auto.
+    replace (flat_map nat2bools (List.map byte2token (a::xs))) with
+      (nat2bools (byte2token a) ++ (flat_map nat2bools (List.map byte2token xs))) ; auto.
+    rewrite IHxs. replace (nat2bools (byte2token a)) with (byte_explode a) ; auto.
+    clear IHxs. unfold byte_explode, nat2bools.
+    replace (Z_of_nat (byte2token a)) with (Word.unsigned a) ; auto.
+    unfold byte2token.
+    rewrite inj_Zabs_nat. unfold Word.unsigned. generalize (Word.intrange _ a).
+    intros. rewrite (Zabs_eq _).  reflexivity. omega.
 Qed.
 
 Lemma reg_parser r s : 
   in_parser (bitslist (register_to_bools r)) s tt -> 
   in_parser reg s r.
 Proof.
-  unfold reg, field ; destruct r ; simpl ; intros ; repeat pinv ; 
+  unfold reg, field. destruct r ; simpl ; intros ; repeat pinv ; 
   repeat econstructor ; eauto.
 Qed.
 
@@ -182,18 +217,20 @@ Lemma mask_parser s :
   in_parser (int32_p safeMask) s tt -> 
   in_parser (word @ (fun w : int32 => Imm_op w %% operand_t)) s (Imm_op safeMask).
 Proof.
-  unfold word. unfold byte. unfold field. unfold int32_p. simpl. intros.
-  repeat pinv. repeat econstructor. repeat rewrite <- app_assoc.
-  repeat rewrite -> app_nil_l. eexists. vm_compute. reflexivity.
+  unfold word, byte, field, int32_p. simpl. intros.
+  repeat pinv.
+    repeat econstructor. repeat rewrite <- app_assoc.
+    repeat rewrite -> app_nil_l. eexists. vm_compute. reflexivity.
 Qed.
 
 Lemma mask_parser' s : 
   in_parser (int32_p safeMask) s tt -> 
   in_parser word s safeMask.
 Proof.
-  unfold word. unfold byte. unfold field. unfold int32_p. simpl. intros.
-  repeat pinv. repeat econstructor. repeat rewrite <- app_assoc.
-  repeat rewrite -> app_nil_l. eexists. vm_compute. reflexivity.
+  unfold word, byte, field, int32_p. simpl. intros.
+  repeat pinv.
+    repeat econstructor. repeat rewrite <- app_assoc.
+    repeat rewrite -> app_nil_l. eexists. vm_compute. reflexivity.
 Qed.
 
 
@@ -202,27 +239,34 @@ Lemma reinsjmp_nonIAT_mask_subset r s i :
   in_parser instruction_parser s (mkPrefix None None false false, i).
 Proof.
   unfold reins_nonIAT_MASK_p. intros.
-  unfold instruction_parser. unfold instruction_parser_list. eapply in_alts_app.
-  left. eapply in_map_alts. replace s with (nil ++ s) ; auto. econstructor ; eauto.
-  unfold prefix_parser_nooverride. unfold option_perm2. econstructor ; eauto.
-  eapply Alt_left_pi. econstructor ; eauto. auto. unfold instr_parsers_nosize_pre.
-  simpl. repeat  match goal with 
+  unfold instruction_parser, instruction_parser_list. eapply in_alts_app.
+  left. eapply in_map_alts. replace s with (nil ++ s) ; auto.
+  econstructor ; eauto.
+    unfold prefix_parser_nooverride, option_perm2.
+    econstructor ; eauto.
+      eapply Alt_left_pi.
+      econstructor ; eauto. reflexivity.
+    unfold instr_parsers_nosize_pre. simpl.
+    repeat  match goal with 
       | [ |- in_parser ((AND_p _) |+| _) _ _ ] => eapply Alt_left_pi 
       | [ |- in_parser (_ |+| _) _ _ ] => eapply Alt_right_pi
     end.
-  unfold AND_p. unfold logic_or_arith_p. eapply Alt_right_pi. eapply Alt_right_pi.
-  eapply Alt_right_pi. eapply Alt_left_pi.
-  unfold bitsleft in H. repeat 
-  match goal with 
+    unfold AND_p, logic_or_arith_p. eapply Alt_right_pi. eapply Alt_right_pi.
+    eapply Alt_right_pi. eapply Alt_left_pi.
+    unfold bitsleft in H. repeat 
+    match goal with 
     | [ H : in_parser (_ @ _) _ _ |- _ ] => generalize (inv_map_pi H) ; clear H ; t
     | [ H : in_parser (_ $ _) _ _ |- _ ] => generalize (inv_cat_pi H) ; clear H ; t
-  end ; subst.
-  econstructor. econstructor. econstructor. eauto. econstructor. econstructor.
-  eauto. econstructor. econstructor. eauto. econstructor. econstructor. eauto.
-  econstructor. eapply reg_parser. destruct x21. eauto. unfold imm_op.
-  simpl. eapply mask_parser. 
-  destruct x22. eauto. eauto. eauto. eauto. eauto. eauto. eauto. eauto.
-  eauto. eauto. eauto. eauto. eauto. eauto. eauto. simpl. auto.
+    end ; subst.
+    econstructor. econstructor. econstructor. eauto.
+    econstructor. econstructor. eauto.
+    econstructor. econstructor. eauto.
+    econstructor. econstructor. eauto.
+    econstructor. eapply reg_parser. destruct x21. eauto.
+    unfold imm_op. simpl. eapply mask_parser. destruct x22.
+    eauto. eauto. eauto. eauto. eauto. eauto. eauto. eauto.
+    eauto. eauto. eauto. eauto. eauto. eauto. eauto. simpl.
+    reflexivity.
 Qed.
 
 
@@ -267,8 +311,9 @@ Lemma bits_bitslist :
     in_parser (bits str) s i ->
     in_parser (bitslist (register_to_bools (string_to_register str))) s tt.
 Proof.
-  intros. repeat pinv ; psimp ; repeat pinv ; simpl ;
-        repeat (econstructor ; econstructor ; eauto).
+  intros.
+  repeat pinv ; psimp ; repeat pinv ; simpl ;
+    repeat (econstructor ; econstructor ; eauto).
 Qed.
 
 Lemma reinsjmp_IAT_or_RET_mask_subset s i : 
@@ -276,40 +321,49 @@ Lemma reinsjmp_IAT_or_RET_mask_subset s i :
   in_parser instruction_parser s (mkPrefix None None false false, i).
 Proof.
   unfold reins_IAT_or_RET_MASK_p. intros.
-  unfold instruction_parser. unfold instruction_parser_list. eapply in_alts_app.
-  left. eapply in_map_alts. replace s with (nil ++ s) ; auto. econstructor ; eauto.
-  unfold prefix_parser_nooverride. unfold option_perm2. econstructor ; eauto.
-  eapply Alt_left_pi. econstructor ; eauto. auto. unfold instr_parsers_nosize_pre.
-  simpl. repeat  match goal with 
-      | [ |- in_parser ((AND_p _) |+| _) _ _ ] => eapply Alt_left_pi 
-      | [ |- in_parser (_ |+| _) _ _ ] => eapply Alt_right_pi
+  unfold instruction_parser, instruction_parser_list. eapply in_alts_app.
+  left. eapply in_map_alts. replace s with (nil ++ s) ; auto.
+  econstructor ; eauto.
+    unfold prefix_parser_nooverride, option_perm2.
+    econstructor ; eauto.
+      eapply Alt_left_pi.
+      econstructor ; eauto.
+    reflexivity.
+    unfold instr_parsers_nosize_pre. simpl.
+    repeat match goal with 
+    | [ |- in_parser ((AND_p _) |+| _) _ _ ] => eapply Alt_left_pi 
+    | [ |- in_parser (_ |+| _) _ _ ] => eapply Alt_right_pi
     end.
-  unfold AND_p. unfold logic_or_arith_p. eapply Alt_right_pi. eapply Alt_right_pi.
-  eapply Alt_right_pi. eapply Alt_right_pi. eapply Alt_right_pi. eapply Alt_right_pi.
-  eapply Alt_right_pi. eapply Alt_right_pi.
-  unfold bitsleft in H. repeat 
-  match goal with 
+    unfold AND_p, logic_or_arith_p.
+    repeat eapply Alt_right_pi. unfold bitsleft in H.
+    repeat match goal with 
     | [ H : in_parser (_ @ _) _ _ |- _ ] => generalize (inv_map_pi H) ; clear H ; t
     | [ H : in_parser (_ $ _) _ _ |- _ ] => generalize (inv_cat_pi H) ; clear H ; t
-  end ; subst.
-  econstructor. econstructor. econstructor. eauto. econstructor. econstructor.
-  eauto. econstructor. econstructor. econstructor. econstructor. eexact H11.
-  econstructor. eexact H15. unfold rm00. eapply Alt_right_pi. eapply Alt_left_pi.
-  econstructor. econstructor. eexact H19. econstructor. econstructor. econstructor.
-  econstructor. econstructor. unfold bits in H23. simpl in H23. unfold field'.
-  eapply in_any_char2. eauto. eauto. eauto. eapply reg_parser.
-  apply bits_bitslist with
-     (str := "100"%string) (c1 := "1") (c2 := "0") (c3 := "0")
-     (i := x33). auto. auto. auto. reflexivity. eexact H27.
-  eauto. eauto. eauto. econstructor. eapply Alt_right_pi. eapply Alt_right_pi.
-  eapply Alt_right_pi. eapply Alt_right_pi. eapply Alt_left_pi. eexact H30.
-  eauto. eauto. eauto. eauto. eauto. eauto. eauto. eauto. eauto. eauto. simpl. eauto.
-  econstructor. eapply mask_parser'. destruct x38. eexact H31.
-  eauto. eauto. eauto. eauto. eauto. eauto. repeat rewrite <- app_assoc.
-  reflexivity. eauto. eauto. simpl. 
-  assert (x37 = (true, (false, (false, tt)))).
-  unfold bits in H30. simpl in H30. repeat pinv. reflexivity. rewrite -> H. simpl. reflexivity.
-  
+    end ; subst.
+    econstructor. econstructor. econstructor. eauto.
+    econstructor. econstructor. eauto.
+    econstructor. econstructor. econstructor. econstructor. eexact H11.
+    econstructor. eexact H15.
+    unfold rm00. eapply Alt_right_pi. eapply Alt_left_pi.
+    econstructor. econstructor. eexact H19.
+    econstructor. econstructor. econstructor. econstructor. econstructor.
+     unfold bits in H23. simpl in H23. unfold field'. eapply in_any_char2.
+     eauto. eauto. eauto. eapply reg_parser.
+     apply bits_bitslist with
+        (str := "100"%string) (c1 := "1") (c2 := "0") (c3 := "0")
+        (i := x33) ; auto.
+    eexact H27. eauto. eauto. eauto.
+    econstructor. eapply Alt_right_pi. eapply Alt_right_pi. eapply Alt_right_pi.
+     eapply Alt_right_pi. eapply Alt_left_pi. eexact H30.
+    eauto. eauto. eauto. eauto. eauto. eauto. eauto. eauto. eauto. eauto.
+    simpl. eauto.
+    econstructor. eapply mask_parser'. destruct x38. eexact H31.
+    eauto. eauto. eauto. eauto. eauto. eauto.
+    repeat rewrite <- app_assoc. reflexivity.
+    eauto. eauto.
+    simpl. assert (x37 = (true, (false, (false, tt)))).
+      unfold bits in H30. simpl in H30. repeat pinv. reflexivity.
+    rewrite -> H. simpl. reflexivity.
 Qed.
 
 
@@ -317,85 +371,96 @@ Lemma reinsjmp_nonIAT_jump_subset r s i :
   in_parser (reins_nonIAT_JMP_p r |+| reins_nonIAT_CALL_p r) s i -> 
   in_parser instruction_parser s (mkPrefix None None false false, i).
 Proof.
-  intros. unfold instruction_parser. unfold instruction_parser_list. eapply in_alts_app.
-  left. eapply in_map_alts. replace s with (nil ++ s) ; auto. econstructor ; eauto.
-  unfold prefix_parser_nooverride, option_perm2. econstructor.
-  eapply Alt_left_pi. econstructor ; eauto. reflexivity.
-  unfold instr_parsers_nosize_pre. simpl. repeat pinv.
-  repeat match goal with 
-           | [ |- in_parser (JMP_p |+| _) _ _ ] => eapply Alt_left_pi
-           | [ |- in_parser (_ |+| _) _ _ ] => eapply Alt_right_pi
-         end. 
-  unfold reins_nonIAT_JMP_p, JMP_p in *. eapply Alt_right_pi. eapply Alt_right_pi.
-  eapply Alt_left_pi. unfold bitsleft in H. repeat
-  match goal with 
+  intros. unfold instruction_parser, instruction_parser_list.
+  eapply in_alts_app. left. eapply in_map_alts.
+  replace s with (nil ++ s) ; auto.
+  econstructor ; eauto.
+    unfold prefix_parser_nooverride, option_perm2.
+    econstructor.
+      eapply Alt_left_pi.
+      econstructor ; eauto.
+    reflexivity.
+    unfold instr_parsers_nosize_pre. simpl.
+    repeat pinv.
+      repeat match goal with 
+      | [ |- in_parser (JMP_p |+| _) _ _ ] => eapply Alt_left_pi
+      | [ |- in_parser (_ |+| _) _ _ ] => eapply Alt_right_pi
+      end. 
+      unfold reins_nonIAT_JMP_p, JMP_p in *.
+      eapply Alt_right_pi. eapply Alt_right_pi. eapply Alt_left_pi.
+      unfold bitsleft in H.
+      repeat match goal with 
+      | [ H : in_parser (_ @ _) _ _ |- _ ] => generalize (inv_map_pi H) ; clear H ; t
+      | [ H : in_parser (_ $ _) _ _ |- _ ] => generalize (inv_cat_pi H) ; clear H ; t
+      end ; subst.
+      econstructor. econstructor. econstructor. eexact H3.
+      econstructor. econstructor. eexact H7.
+      unfold ext_op_modrm2.
+      econstructor. repeat eapply Alt_right_pi.
+      econstructor. eexact H11.
+      econstructor. eexact H14.
+      unfold rm11. econstructor. eapply reg_parser. destruct x18. eexact H15.
+      eauto. eauto. eauto. eauto. eauto. eauto. eauto. eauto. eauto. auto. eauto.
+      eauto. simpl. reflexivity.
+    repeat match goal with 
+    | [ |- in_parser (CALL_p |+| _) _ _ ] => eapply Alt_left_pi
+    | [ |- in_parser (_ |+| _) _ _ ] => eapply Alt_right_pi
+    end. 
+    unfold reins_nonIAT_CALL_p, CALL_p in *. eapply Alt_right_pi.
+    eapply Alt_left_pi. unfold bitsleft in H.
+    repeat match goal with 
     | [ H : in_parser (_ @ _) _ _ |- _ ] => generalize (inv_map_pi H) ; clear H ; t
     | [ H : in_parser (_ $ _) _ _ |- _ ] => generalize (inv_cat_pi H) ; clear H ; t
-  end ; subst.
-  econstructor. econstructor. econstructor. eexact H3.
-  econstructor. econstructor. eexact H7.
-  unfold ext_op_modrm2. econstructor. repeat eapply Alt_right_pi.
+    end ; subst.
+    econstructor. econstructor. econstructor. eexact H3.
+    econstructor. econstructor. eexact H7.
+    unfold ext_op_modrm2. econstructor. repeat eapply Alt_right_pi.
     econstructor. eexact H11.
-  econstructor. eexact H14.
-  unfold rm11. econstructor. eapply reg_parser. destruct x18.
-  eexact H15. eauto. eauto. eauto. eauto. eauto.
-  eauto. eauto. eauto. eauto. auto. eauto. eauto. simpl. reflexivity.
-  repeat match goal with 
-           | [ |- in_parser (CALL_p |+| _) _ _ ] => eapply Alt_left_pi
-           | [ |- in_parser (_ |+| _) _ _ ] => eapply Alt_right_pi
-         end. 
-  unfold reins_nonIAT_CALL_p, CALL_p in *. eapply Alt_right_pi.
-  eapply Alt_left_pi. unfold bitsleft in H. repeat
-  match goal with 
-    | [ H : in_parser (_ @ _) _ _ |- _ ] => generalize (inv_map_pi H) ; clear H ; t
-    | [ H : in_parser (_ $ _) _ _ |- _ ] => generalize (inv_cat_pi H) ; clear H ; t
-  end ; subst.
-  econstructor. econstructor. econstructor. eexact H3.
-  econstructor. econstructor. eexact H7.
-  unfold ext_op_modrm2. econstructor. repeat eapply Alt_right_pi.
-    econstructor. eexact H11.
-  econstructor. eexact H14.
-  unfold rm11. econstructor. eapply reg_parser. destruct x18.
-  eexact H15. eauto. eauto. eauto. eauto. eauto.
-  eauto. eauto. eauto. eauto. auto. eauto. eauto. simpl. reflexivity.
+    econstructor. eexact H14.
+    unfold rm11. econstructor. eapply reg_parser. destruct x18. eexact H15.
+    eauto. eauto. eauto. eauto. eauto. eauto. eauto. eauto. eauto. auto. eauto.
+    eauto. simpl. reflexivity.
 Qed.
 
 Lemma reinsjmp_IAT_or_RET_jump_subset s i : 
   in_parser (reins_IAT_JMP_p |+| RET_p) s i -> 
   in_parser instruction_parser s (mkPrefix None None false false, i).
 Proof.
-  intros. unfold instruction_parser. unfold instruction_parser_list. eapply in_alts_app.
-  left. eapply in_map_alts. replace s with (nil ++ s) ; auto. econstructor ; eauto.
-  unfold prefix_parser_nooverride, option_perm2. econstructor.
-  eapply Alt_left_pi. econstructor ; eauto. reflexivity.
-  unfold instr_parsers_nosize_pre. simpl. repeat pinv.
-
-  repeat match goal with 
-           | [ |- in_parser (JMP_p |+| _) _ _ ] => eapply Alt_left_pi
-           | [ |- in_parser (_ |+| _) _ _ ] => eapply Alt_right_pi
-         end. 
-  unfold reins_IAT_JMP_p, JMP_p in *. eapply Alt_right_pi. eapply Alt_right_pi.
-  eapply Alt_left_pi. unfold bitsleft in H. repeat
-  match goal with 
-    | [ H : in_parser (_ @ _) _ _ |- _ ] => generalize (inv_map_pi H) ; clear H ; t
-    | [ H : in_parser (_ $ _) _ _ |- _ ] => generalize (inv_cat_pi H) ; clear H ; t
-  end ; subst.
-  econstructor. econstructor. econstructor. eexact H3.
-  econstructor. econstructor. eexact H7.
-  unfold ext_op_modrm2. econstructor. eapply Alt_left_pi.
-    econstructor. eexact H11.
-  econstructor. eexact H15.
-  unfold rm00. eapply Alt_right_pi. eapply Alt_right_pi. eapply Alt_right_pi.
-  econstructor. econstructor. eexact H19.
-  eexact H20. eauto. eauto. eauto. eauto. eauto.
-  eauto. eauto. eauto. eauto. eauto. eauto. eauto.
-  eauto. eauto. eauto.
-
-  repeat match goal with 
-           | [ |- in_parser (RET_p |+| _) _ _ ] => eapply Alt_left_pi
-           | [ |- in_parser (_ |+| _) _ _ ] => eapply Alt_right_pi
-         end.
-  exact H.
+  intros. unfold instruction_parser, instruction_parser_list. eapply in_alts_app.
+  left. eapply in_map_alts.
+  replace s with (nil ++ s) ; auto.
+  econstructor ; eauto.
+    unfold prefix_parser_nooverride, option_perm2.
+    econstructor.
+      eapply Alt_left_pi.
+      econstructor ; eauto.
+      reflexivity.
+    unfold instr_parsers_nosize_pre. simpl.
+    repeat pinv.
+      repeat match goal with 
+      | [ |- in_parser (JMP_p |+| _) _ _ ] => eapply Alt_left_pi
+      | [ |- in_parser (_ |+| _) _ _ ] => eapply Alt_right_pi
+      end. 
+      unfold reins_IAT_JMP_p, JMP_p in *. eapply Alt_right_pi. eapply Alt_right_pi.
+      eapply Alt_left_pi. unfold bitsleft in H.
+      repeat match goal with 
+      | [ H : in_parser (_ @ _) _ _ |- _ ] => generalize (inv_map_pi H) ; clear H ; t
+      | [ H : in_parser (_ $ _) _ _ |- _ ] => generalize (inv_cat_pi H) ; clear H ; t
+      end ; subst.
+      econstructor. econstructor. econstructor. eexact H3.
+      econstructor. econstructor. eexact H7.
+      unfold ext_op_modrm2. econstructor. eapply Alt_left_pi.
+      econstructor. eexact H11.
+      econstructor. eexact H15.
+      unfold rm00. eapply Alt_right_pi. eapply Alt_right_pi. eapply Alt_right_pi.
+      econstructor. econstructor. eexact H19.
+      eexact H20. eauto. eauto. eauto. eauto. eauto. eauto. eauto. eauto. eauto.
+      eauto. eauto. eauto. eauto. eauto. eauto.
+      repeat match goal with 
+      | [ |- in_parser (RET_p |+| _) _ _ ] => eapply Alt_left_pi
+      | [ |- in_parser (_ |+| _) _ _ ] => eapply Alt_right_pi
+      end.
+      exact H.
 Qed.
 
 Lemma reinsjmp_nonIAT_parser_inv r s1 s2 i1 i2:
@@ -405,9 +470,13 @@ Lemma reinsjmp_nonIAT_parser_inv r s1 s2 i1 i2:
   reinsjmp_nonIAT_mask_instr (mkPrefix None None false false) i1
                      (mkPrefix None None false false) i2 = true.
 Proof.
-  unfold reins_nonIAT_MASK_p, reins_nonIAT_JMP_p, reins_nonIAT_CALL_p ; intros.
-  repeat pinv ; unfold reinsjmp_nonIAT_mask_instr ; simpl ; destruct (register_eq_dec r ESP) ;
-  try congruence ; destruct (register_eq_dec r r) ; try congruence ; auto.
+  unfold reins_nonIAT_MASK_p, reins_nonIAT_JMP_p, reins_nonIAT_CALL_p.
+  intros.
+  repeat pinv ; unfold reinsjmp_nonIAT_mask_instr ; simpl ;
+  destruct (register_eq_dec r ESP) ;
+  try congruence ;
+  destruct (register_eq_dec r r) ;
+  try congruence.
 Qed.
 
 Lemma reinsjmp_IAT_or_RET_parser_inv s1 s2 i1 i2:
@@ -416,8 +485,9 @@ Lemma reinsjmp_IAT_or_RET_parser_inv s1 s2 i1 i2:
   reinsjmp_IAT_or_RET_mask_instr (mkPrefix None None false false) i1
                         (mkPrefix None None false false) i2 = true.
 Proof.
-  unfold reins_IAT_or_RET_MASK_p, reins_IAT_JMP_p, RET_p. intros.
-  repeat pinv ; unfold reinsjmp_IAT_or_RET_mask_instr ; simpl ; auto.
+  unfold reins_IAT_or_RET_MASK_p, reins_IAT_JMP_p, RET_p.
+  intros.
+  repeat pinv ; unfold reinsjmp_IAT_or_RET_mask_instr ; simpl ; reflexivity.
 Qed.
 
 Lemma reinsjmp_nonIAT_dfa_corr1 : 
@@ -439,24 +509,38 @@ Lemma reinsjmp_nonIAT_dfa_corr1 :
           bytes = ts3 ++ ts4 ->
           forall v0, ~ in_parser reinsjmp_nonIAT_mask (flat_map byte_explode ts3) v0).
 Proof.
-  intros. subst. rewrite build_dfa_eq in H.
-  generalize (dfa_recognize_corr _ _ _ _ H (List.map byte2token bytes)
-    (bytesLt256 _)). clear H. rewrite H0. clear H0. mysimp.
+  intros. subst.
+  rewrite build_dfa_eq in H.
+    generalize (dfa_recognize_corr _ _ _ _ H (List.map byte2token bytes)
+     (bytesLt256 _)).
+    clear H.
+  rewrite H0. clear H0.
+  mysimp.
   generalize (byte2token_app _ _ _ H). t. subst.
   rewrite (nat2bools_byte2token_is_byte_explode _) in H1.
-  generalize (reinsjmp_nonIAT_parser_splits _ H1). clear H1. t. destruct x0. simpl in *.
+    generalize (reinsjmp_nonIAT_parser_splits _ H1). clear H1.
+  t. destruct x0. simpl in *.
   exists x. exists (mkPrefix None None false false). exists i.
-  exists x3. exists (mkPrefix None None false false). exists i0. split.
-  rewrite flat_map_app. unfold reinsjmp_nonIAT_p. destruct x4 ; try congruence ;
-  repeat (try (eapply Alt_left_pi ; econstructor ; eauto ; fail) ; eapply Alt_right_pi).
-  split. apply (reinsjmp_nonIAT_mask_subset H3). split. eapply (reinsjmp_nonIAT_jump_subset H4). 
-  split. rewrite H1. rewrite map_length. auto. split. subst. rewrite app_assoc.
-  assert (x2 = List.map nat_to_byte (List.map byte2token x2)) ; [ idtac | congruence].
-  rewrite n2bs. auto. split. eapply reinsjmp_nonIAT_parser_inv ; eauto.
-  intros. rewrite H1 in H2. specialize (H2 (List.map byte2token ts3)
-  (List.map byte2token ts4)). repeat rewrite map_length in H2.
+  exists x3. exists (mkPrefix None None false false). exists i0.
+  split.
+    rewrite flat_map_app. unfold reinsjmp_nonIAT_p.
+    destruct x4  ; try congruence ;
+      repeat (try (eapply Alt_left_pi ; econstructor ; eauto ; fail)
+             ; eapply Alt_right_pi).
+  split. apply (reinsjmp_nonIAT_mask_subset H3).
+  split. eapply (reinsjmp_nonIAT_jump_subset H4). 
+  split. rewrite H1. rewrite map_length. reflexivity.
+  split. subst. rewrite app_assoc.
+    assert (x2 = List.map nat_to_byte (List.map byte2token x2))
+    ; [ idtac | congruence].
+    rewrite n2bs. reflexivity.
+  split. eapply reinsjmp_nonIAT_parser_inv ; eauto.
+  intros. rewrite H1 in H2.
+  specialize (H2 (List.map byte2token ts3) (List.map byte2token ts4)).
+  repeat rewrite map_length in H2.
   specialize (H2 H5). subst. rewrite H6 in H2. rewrite map_app in H2.
-  specialize (H2 (eq_refl _)). rewrite nat2bools_byte2token_is_byte_explode in H2.
+  specialize (H2 (eq_refl _)).
+  rewrite nat2bools_byte2token_is_byte_explode in H2.
   intro. apply (H2 v0 H1).
 Qed.
 
@@ -487,26 +571,18 @@ Proof.
   rewrite (nat2bools_byte2token_is_byte_explode _) in H1.
   generalize (reinsjmp_IAT_or_RET_parser_splits _ H1). clear H1. t.
   destruct x0. simpl in *.
-
   exists x. exists (mkPrefix None None false false). exists i.
     exists x3. exists (mkPrefix None None false false). exists i0.
-
   split. rewrite flat_map_app. econstructor. eauto. eexact H3.
     reflexivity. reflexivity.
-
   split. apply (reinsjmp_IAT_or_RET_mask_subset H1).
-
   split. eapply (reinsjmp_IAT_or_RET_jump_subset H3). 
-
   split. rewrite H0. rewrite map_length. reflexivity.
-
   split. subst. rewrite app_assoc.
     assert (x2 = List.map nat_to_byte (List.map byte2token x2))
     ; [ idtac | congruence].
     rewrite n2bs. reflexivity.
-
   split. eapply reinsjmp_IAT_or_RET_parser_inv ; eauto.
-
   intros. rewrite H0 in H2. specialize (H2 (List.map byte2token ts3)
   (List.map byte2token ts4)). repeat rewrite map_length in H2.
   specialize (H2 H4). subst. rewrite H5 in H2. rewrite map_app in H2.
@@ -517,11 +593,14 @@ Qed.
 Lemma flat_map_nil_is_nil x : 
   flat_map byte_explode x = nil -> x = nil.
 Proof.
-  induction x ; intros. auto. replace (flat_map byte_explode (a :: x))
-  with (byte_explode a ++ (flat_map byte_explode x)) in H ; auto.
-  generalize (nil_is_nil_app_nil _ _ (eq_sym H)). t.
-  clear IHx H H1. assert False ; try contradiction. 
-  unfold byte_explode in H0. congruence.
+  induction x ; intros.
+    reflexivity.
+    replace (flat_map byte_explode (a :: x))
+      with (byte_explode a ++ (flat_map byte_explode x)) in H ; auto.
+    generalize (nil_is_nil_app_nil _ _ (eq_sym H)). t.
+    clear IHx H H1.
+    assert False ; try contradiction. 
+      unfold byte_explode in H0. congruence.
 Qed.
 
 (** This should get placed in DFACorrectness and used for the other 2 DFAs. *)
@@ -535,7 +614,7 @@ Proof.
   generalize (@simple_parse'_corr2 
     instruction_parser (bytes1 ++ bytes2) initial_parser_state nil 
     (eq_refl _) (eq_refl _)).
-  simpl ; intros. 
+  simpl. intros. 
   assert (forall s1 s2, nil = s1 ++ s2 -> 
     apply_null (snd (parser2regexp instruction_parser))
           (deriv_parse' (fst (parser2regexp instruction_parser))
@@ -543,30 +622,47 @@ Proof.
           (wf_derivs (snd (parser2regexp instruction_parser))
              (flat_map byte_explode s1)
              (fst (parser2regexp instruction_parser))
-             (p2r_wf instruction_parser initial_ctxt)) = nil). intros. clear H0.
-  generalize (nil_is_nil_app_nil _ _ H1) ; t ; subst.
+             (p2r_wf instruction_parser initial_ctxt)) = nil).
+  intros. clear H0.
+  generalize (nil_is_nil_app_nil _ _ H1). t. subst.
   generalize (min_count_not_null _ min_instruction_bits).
-  generalize instruction_parser. clear H H1. simpl. intro.
+  generalize instruction_parser.
+  clear H H1. simpl.
+  intro.
   generalize (apply_null (snd(parser2regexp p)) (fst (parser2regexp p))).
   assert (wf_derivs (snd (parser2regexp p)) nil (fst (parser2regexp p))
-    (p2r_wf p initial_ctxt) = p2r_wf p initial_ctxt). 
-  apply Coqlib.proof_irrelevance. 
-  generalize H. clear H. unfold parser2regexp.
-  generalize (p2r_wf p initial_ctxt). intros. rewrite <- H in H0. auto.
+         (p2r_wf p initial_ctxt) = p2r_wf p initial_ctxt). 
+    apply Coqlib.proof_irrelevance. 
+  generalize H. clear H.
+  unfold parser2regexp.
+  generalize (p2r_wf p initial_ctxt).
+  intros. rewrite <- H in H0. exact H0.
   specialize (H0 H1). clear H1.
   destruct (simple_parse' initial_parser_state (bytes1 ++ bytes2)).
-  destruct p. t. destruct p. assert (length bytes1 >= length x).
-  assert (length bytes1 < length x -> False). intros.
-  eapply (H2 bytes1 bytes2 (eq_refl _) H3 _ H). omega.
-  assert (exists s2, bytes1 = x ++ s2). generalize bytes1 x H3 H0.
-  induction bytes0 ; destruct x0 ; simpl ; intros. exists nil. auto.
-  assert False. omega. contradiction. subst. eauto. injection H5 ; clear H5 ; t ; subst.
-  assert (length bytes0 >= length x0). omega. specialize (IHbytes0 _ H6 H5). t.
-  subst. eauto. t. subst. rewrite app_ass in H0. generalize (app_inv_head _ _ _ H0).
-  intros. subst. rewrite flat_map_app in H. generalize (parser_determ H). intros.
-  specialize (H4 _ _ (p,i) (eq_refl _) H1). t. injection H5 ; intros.
-  rewrite (flat_map_nil_is_nil _ H4). subst.  auto.
-  specialize (H0 bytes1 bytes2 (pfx,ins) (eq_refl _)). contradiction.
+    destruct p. t. destruct p.
+    assert (length bytes1 >= length x).
+      assert (length bytes1 < length x -> False).
+        intros.
+        eapply (H2 bytes1 bytes2 (eq_refl _) H3 _ H). omega.
+    assert (exists s2, bytes1 = x ++ s2).
+      generalize bytes1 x H3 H0.
+      induction bytes0 ; destruct x0 ; simpl ; intros.
+        exists nil. reflexivity.
+        assert False.
+          omega.
+        contradiction.
+        subst. eauto.
+        injection H5 ; clear H5 ; t ; subst.
+        assert (length bytes0 >= length x0).
+          omega.
+        specialize (IHbytes0 _ H6 H5). t.
+        subst. eauto.
+    t. subst. rewrite app_ass in H0. generalize (app_inv_head _ _ _ H0).
+    intros. subst. rewrite flat_map_app in H. generalize (parser_determ H).
+    intros. specialize (H4 _ _ (p,i) (eq_refl _) H1). t.
+    injection H5 ; intros.
+    rewrite (flat_map_nil_is_nil _ H4). subst.  auto.
+    specialize (H0 bytes1 bytes2 (pfx,ins) (eq_refl _)). contradiction.
 Qed.
 
 Lemma reinsjmp_nonIAT_dfa_corr : 
@@ -585,9 +681,10 @@ Lemma reinsjmp_nonIAT_dfa_corr :
 Proof.
   intros d H bytes n nats2 H1.
   generalize (@reinsjmp_nonIAT_dfa_corr1 d H bytes n nats2 H1). t.
-  exists x. exists x0. exists x1. exists x2. exists x3. exists x4. repeat split ; auto.
-  rewrite H5. eapply in_parser_implies_simple_parse ; auto.
-  eapply in_parser_implies_simple_parse ; auto.
+  exists x. exists x0. exists x1. exists x2. exists x3. exists x4.
+  repeat split ; auto.
+    rewrite H5. apply in_parser_implies_simple_parse. exact H2.
+    apply in_parser_implies_simple_parse. exact H3.
 Qed.
 
 Lemma reinsjmp_IAT_or_RET_dfa_corr : 
@@ -606,9 +703,10 @@ Lemma reinsjmp_IAT_or_RET_dfa_corr :
 Proof.
   intros d H bytes n nats2 H1.
   generalize (@reinsjmp_IAT_or_RET_dfa_corr1 d H bytes n nats2 H1). t.
-  exists x. exists x0. exists x1. exists x2. exists x3. exists x4. repeat split ; auto.
-  rewrite H5. eapply in_parser_implies_simple_parse ; auto.
-  eapply in_parser_implies_simple_parse ; auto.
+  exists x. exists x0. exists x1. exists x2. exists x3. exists x4.
+  repeat split ; auto.
+    rewrite H5. apply in_parser_implies_simple_parse. exact H2.
+    apply in_parser_implies_simple_parse. exact H3.
 Qed.
 
 Lemma reinsjmp_nonIAT_mask_dfa_length : 
@@ -620,19 +718,16 @@ Lemma reinsjmp_nonIAT_mask_dfa_length :
         (n <= 15). 
 Proof.
   intros. apply reinsjmp_nonIAT_dfa_corr1 in H0.
-   destruct H0. destruct H0.
-   destruct H0. destruct H0. 
-   destruct H0. destruct H0. 
-   destruct H0.
-   destruct H1. destruct H2.
-   destruct H3.
-   assert (max_bit_count reinsjmp_nonIAT_mask = Some 64).
-     vm_compute; trivial.
-   eapply max_count_corr in H0.
-   rewrite H5 in H0.
-   rewrite byte_explode_mult_len in H0.
-   rewrite H3. omega.
-   auto.
+    destruct H0. destruct H0. destruct H0. destruct H0. 
+    destruct H0. destruct H0. destruct H0.
+    destruct H1. destruct H2. destruct H3.
+    assert (max_bit_count reinsjmp_nonIAT_mask = Some 64).
+      vm_compute. reflexivity.
+    apply max_count_corr in H0.
+    rewrite H5 in H0.
+    rewrite byte_explode_mult_len in H0.
+    rewrite H3. omega.
+    auto.
 Qed.
 
 Lemma reinsjmp_IAT_or_RET_mask_dfa_length : 
@@ -644,17 +739,14 @@ Lemma reinsjmp_IAT_or_RET_mask_dfa_length :
         (n <= 15). 
 Proof.
   intros. apply reinsjmp_IAT_or_RET_dfa_corr1 in H0.
-   destruct H0. destruct H0.
-   destruct H0. destruct H0. 
-   destruct H0. destruct H0. 
-   destruct H0.
-   destruct H1. destruct H2.
-   destruct H3.
-   assert (max_bit_count reinsjmp_IAT_or_RET_mask = Some 104).
-     vm_compute; trivial.
-   eapply max_count_corr in H0.
-   rewrite H5 in H0.
-   rewrite byte_explode_mult_len in H0.
-   rewrite H3. omega.
-   auto.
+    destruct H0. destruct H0. destruct H0. destruct H0. 
+    destruct H0. destruct H0. destruct H0.
+    destruct H1. destruct H2. destruct H3.
+    assert (max_bit_count reinsjmp_IAT_or_RET_mask = Some 104).
+      vm_compute; trivial.
+    apply max_count_corr in H0.
+    rewrite H5 in H0.
+    rewrite byte_explode_mult_len in H0.
+    rewrite H3. omega.
+    auto.
 Qed.
