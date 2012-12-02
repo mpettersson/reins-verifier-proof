@@ -159,32 +159,60 @@ Qed.
 
 (* CHANGE Need to put the value of our safeMask here *)
 Lemma signed_safemask_eq :
-  signed (safeMask) =  - 32.
-Proof. compute. trivial. Qed.
+  signed (safeMask) =  268435440.
+Proof. vm_compute. reflexivity. Qed.
+
+Lemma unsigned_safemask_eq :
+  unsigned safeMask = 268435440.
+Proof. vm_compute. reflexivity. Qed.
+
+Lemma unsigned_signed_eq :
+  forall (x y : int32), unsigned x = unsigned y <-> signed x = signed y.
+Proof.
+  intros. split.
+    intros. unfold signed. rewrite <- H. reflexivity.
+    intros. unfold signed in H.
+    destruct (zlt (unsigned x) (half_modulus 31)).
+    destruct (zlt (unsigned y) (half_modulus 31)).
+      exact H.
+      contradict H.
+      assert (unsigned y < modulus 31).
+        apply unsigned_range.
+      assert (0 <= unsigned x).
+        apply unsigned_range.
+      omega.
+    destruct (zlt (unsigned y) (half_modulus 31)).
+      contradict H.
+      assert (unsigned x < modulus 31).
+        apply unsigned_range.
+      assert (0 <= unsigned y).
+        apply unsigned_range.
+      omega.
+    omega.
+Qed.
 
 (* if you AND any address with safeMask, you will get an aligned address *)
 Lemma and_safeMask_aligned : forall (v wd: int32),
   signed wd = signed safeMask -> aligned (Word.and v wd).
-Proof. intros.
-  assert (signed wd < 0).
-    rewrite H. rewrite signed_safemask_eq. omega.
-  assert (signed wd = unsigned wd - w32modulus).
-    unfold signed in *.
-    destruct_head. generalize (unsigned_range wd). omega.
-      trivial.
-  assert (unsigned wd = signed wd + w32modulus) by omega.
-  assert (unsigned wd = 4294967264).
-    rewrite H2. rewrite H. rewrite signed_safemask_eq. compute. trivial.
-  assert (low_bits_zero 31 (unsigned wd) (Z_of_nat 5)). 
-    apply multiple_low_bits_zero. unfold wordsize. omega.
-    rewrite H3. compute. trivial.
-  unfold aligned, aligned_bool.
-  apply ZOrderedType.Z_as_DT.eqb_eq.
-  apply low_bits_zero_multiple with (wordsize_minus_one:=31%nat).  
-    unfold logChunkSize. compute. omega.
-    apply and_low_bits_zero.
-      apply inj_le. unfold logChunkSize. compute. omega.
-      assumption.
+Proof. 
+  intros.
+    assert (signed wd = unsigned wd).
+      assert (signed safeMask = unsigned safeMask).
+        rewrite -> signed_safemask_eq. rewrite -> unsigned_safemask_eq.
+        reflexivity.
+      rewrite -> H. rewrite -> H0. apply unsigned_signed_eq. omega.
+        
+    assert (low_bits_zero 31 (unsigned wd) (Z_of_nat logChunkSize)).
+      apply multiple_low_bits_zero. vm_compute. omega.
+      rewrite -> H0 in H. rewrite -> H. rewrite -> signed_safemask_eq.
+      compute. reflexivity.
+    unfold aligned, aligned_bool.
+    apply ZOrderedType.Z_as_DT.eqb_eq.
+    apply low_bits_zero_multiple with (wordsize_minus_one := 31%nat).
+      unfold logChunkSize. compute. omega.
+      apply and_low_bits_zero.
+        apply inj_le. unfold logChunkSize. compute. omega.
+        exact H1.
 Qed.
 
 (** * proving checkAligned is correct *)
@@ -263,7 +291,7 @@ Proof. unfold checkAligned. intros.
   apply Zmod_0_l.
 Qed.
 
-
+(*** compiles to here ***)
 Section VERIFIER_CORR.
 
   (* CHANGE *)
