@@ -291,6 +291,21 @@ Proof. unfold checkAligned. intros.
   apply Zmod_0_l.
 Qed.
 
+
+(*
+* MCP - Working on checkExecSectionLowMemory and checkExecSec:
+*  
+
+Lemma checkExecSectionLowMemory_corr : forall lim len start x,  
+    checkExecSectionLowMemory (start, len, lim) = true
+    ->
+
+Lemma checkExecSection_corr : forall lim len start iatB x, 
+    checkExecSection (iatB, (start, len, lim)) = true
+    -> 
+*)
+
+
 (*** compiles to here ***)
 Section VERIFIER_CORR.
 
