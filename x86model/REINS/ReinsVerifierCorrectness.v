@@ -296,13 +296,17 @@ Qed.
 * MCP - Working on checkExecSectionLowMemory and checkExecSec:
 *  
 
-Lemma checkExecSectionLowMemory_corr : forall lim len start x,  
-    checkExecSectionLowMemory (start, len, lim) = true
-    ->
+Lemma checkExecSectionLowMemoryDichotomy : forall start len lim s,  
+    checkExecSectionLowMemory start len lim s = (Okay_ans true, s) \/
+    checkExecSectionLowMemory start len lim s = (Okay_ans false, s).
 
-Lemma checkExecSection_corr : forall lim len start iatB x, 
-    checkExecSection (iatB, (start, len, lim)) = true
-    -> 
+Lemma checkExecSectionLowMemoryEquation : forall start len lim s,
+    checkExecSectionLowMemory start len lim s = 
+        (Okay_ans (  )).
+
+Lemma checkExecSection_corr : forall iatB start len lim x, 
+    checkExecSection (iatB) (start, len, lim) = true
+        -> 
 *)
 
 
