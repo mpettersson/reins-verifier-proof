@@ -56,7 +56,6 @@ Require Import ReinsVerifier.
 Require Import ReinsDFACorrectness.
 Require Import REINSjmp.
 
-
 Import X86_PARSER_ARG.
 Import X86_PARSER.
 Import X86_BASE_PARSER.
@@ -290,6 +289,47 @@ Proof. unfold checkAligned. intros.
   eapply checkAligned_aux_corr; try eassumption.
   apply Zmod_0_l.
 Qed.
+
+(* New Lemmas! *)
+
+Require Import PEFormat.
+Require Import PETraversal.
+
+Lemma checkExports_corr :
+   forall (f : list (list BYTE)) (e : list DWORD),
+   e = getExports f 
+   -> checkExports f safeMask = true
+   -> forall (e' : DWORD), In e' e 
+   -> ((Word.unsigned e') < lowMemCutoff)%Z /\ (Zmod (Word.unsigned e') chunkSize = 0%Z)
+.
+Admitted.
+
+Lemma checkCallAlignment_corr :
+   forall (callAddrs : Int32Set.t), checkCallAlignment callAddrs = true
+   -> forall (addr : int32), Int32Set.In addr callAddrs
+   -> Zmod ((Word.unsigned addr) + 2) chunkSize = 0%Z
+.
+Admitted.
+
+
+Lemma checkIATAddresses_corr :
+   forall (f : list (list BYTE)) (addrs : Int32Set.t) (a b : int32) (iat : IATBounds),
+   iat = getIATBounds f
+   -> match iat with
+      | iatbounds (a,b) => (a,b) 
+      end = (a,b)
+   -> checkIATAddresses iat addrs = true
+   -> forall (addr : int32), Int32Set.In addr addrs
+   -> ((Word.unsigned a) <= (Word.unsigned addr) <= (Word.unsigned (Word.add a b)))%Z
+.
+Admitted.
+
+Lemma checkExecSectionLowMem_corr :
+   forall (start length : int32), checkExecSectionLowMemory start length = true
+   -> ((Word.unsigned (Word.add start length)) < two_power_nat (Word.wordsize 31))%Z
+      /\ ((Word.unsigned (Word.add start length) < lowMemCutoff))%Z
+.
+Admitted.
 
 
 (*
