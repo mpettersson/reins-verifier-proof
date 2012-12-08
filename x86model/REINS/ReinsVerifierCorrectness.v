@@ -214,6 +214,12 @@ Proof.
         exact H1.
 Qed.
 
+Lemma and_safeMask_low_mem : forall (v wd: int32),
+ signed wd = signed safeMask -> unsigned (Word.and v wd) < lowMemCutoff.
+Proof.
+ admit.
+Qed.
+
 (** * proving checkAligned is correct *)
 
 (* Unfolding checkAligned, 
@@ -295,59 +301,143 @@ Qed.
 Require Import PEFormat.
 Require Import PETraversal.
 
-Lemma checkExports_corr :
-   forall (f : list (list BYTE)) (e : list DWORD),
-   e = getExports f 
-   -> checkExports f safeMask = true
-   -> forall (e' : DWORD), In e' e 
-   -> ((Word.unsigned e') < lowMemCutoff)%Z /\ (Zmod (Word.unsigned e') chunkSize = 0%Z)
-.
-Admitted.
+Lemma cons_nil_nil : forall A (a b : A) (l : list A),
+  a :: l = b :: nil -> l = nil.
+Proof.
+ admit.
+Qed.
 
-Lemma checkCallAlignment_corr :
-   forall (callAddrs : Int32Set.t), checkCallAlignment callAddrs = true
-   -> forall (addr : int32), Int32Set.In addr callAddrs
-   -> Zmod ((Word.unsigned addr) + 2) chunkSize = 0%Z
-.
-Admitted.
+Lemma cons_nil_eq : forall A (a b : A) (l : list A),
+  a :: l = b :: nil -> a = b.
+Proof.
+  admit.
+Qed.
 
+Lemma fold_left_andb_forall : forall a l,
+   fold_left andb (a::l) true = true ->
+   a = true
+with fold_left_andb_base : forall a l,
+  fold_left andb l a = true ->
+  a = true.
+Proof.
+  intros. simpl in H.
+  induction l.
+    simpl in H. exact H.
+    simpl in H.
+    assert ((a && a0) = true).
+    apply fold_left_andb_base with (l:=l). exact H.
+    rewrite -> andb_true_iff in H0.
+    destruct H0. exact H0.
+  intros.
+  induction l.
+    simpl in H. exact H.
+    simpl in H.
+    apply fold_left_andb_base in H.
+    rewrite -> andb_true_iff in H.
+    destruct H. exact H.
+Qed.
+
+Lemma eq_and_addr_mask : forall addr,
+  eq addr (and addr safeMask) = true -> (unsigned addr < lowMemCutoff)%Z /\ aligned addr.
+Proof.
+  intros.
+  rewrite -> int_eq_true_iff2 in H.
+  split.
+    rewrite -> H. apply and_safeMask_low_mem. reflexivity.
+    rewrite -> H. apply and_safeMask_aligned. reflexivity.
+Qed.
+
+
+
+Lemma checkExports_corr : forall (f : list (list BYTE)) (e e': list DWORD) (a : DWORD),
+  e = getExports f ->
+  checkExports f safeMask = true ->
+  e = a::e' ->
+  (unsigned a < lowMemCutoff)%Z /\ (aligned a%Z).
+Proof.
+  intros.
+  unfold checkExports in H0.
+  rewrite <- H in H0.
+  apply eq_and_addr_mask. rewrite -> H1 in H0. simpl List.map in H0.
+  apply fold_left_andb_forall with (l:=List.map (fun addr : DWORD => eq addr (and addr safeMask)) e').
+  exact H0.
+Qed.
+
+Require Import MSetFacts.
+
+Lemma low_mem_proper: forall a b,
+  Morphisms.Proper ((fun x y : Int32_OT.t => eq x y = true) ==> Logic.eq)
+    (fun addr : Word.wint 31 => lequ a addr && lequ addr (a +32 b)).
+Proof. unfold Morphisms.Proper, Morphisms.respectful.
+  intros. apply int_eq_true_iff2 in H. prover.
+Qed.
 
 Lemma checkIATAddresses_corr :
-   forall (f : list (list BYTE)) (addrs : Int32Set.t) (a b : int32) (iat : IATBounds),
-   iat = getIATBounds f
-   -> match iat with
-      | iatbounds (a,b) => (a,b) 
-      end = (a,b)
-   -> checkIATAddresses iat addrs = true
-   -> forall (addr : int32), Int32Set.In addr addrs
-   -> ((Word.unsigned a) <= (Word.unsigned addr) <= (Word.unsigned (Word.add a b)))%Z
-.
-Admitted.
+   forall (addrs : Int32Set.t) (a b : int32),
+   checkIATAddresses (iatbounds (a,b)) addrs = true ->
+   forall (addr : int32), Int32Set.In addr addrs ->
+   ((Word.unsigned a) <= (Word.unsigned addr) <= (Word.unsigned (Word.add a b)))%Z.
+Proof.
+  intros.
+  unfold checkIATAddresses in H.
+  apply Int32Set.for_all_spec in H.
+  
+  unfold Int32Set.For_all in H.
+  
+  do 2 rewrite <- int_lequ_true_iff.
+  rewrite <- andb_true_iff.
+  
+  apply H. exact H0.
 
-Lemma checkExecSectionLowMem_corr :
-   forall (start length : int32), checkExecSectionLowMemory start length = true
-   -> ((Word.unsigned (Word.add start length)) < two_power_nat (Word.wordsize 31))%Z
-      /\ ((Word.unsigned (Word.add start length) < lowMemCutoff))%Z
-.
-Admitted.
+  apply low_mem_proper.
+Qed.
 
+Lemma aligned_bool_fun_proper:
+  Morphisms.Proper ((fun x y : Int32_OT.t => eq x y = true) ==> Logic.eq)
+    (fun call : int32 => aligned_bool (call +32_p 2)).
+Proof. unfold Morphisms.Proper, Morphisms.respectful.
+  intros. apply int_eq_true_iff2 in H. prover.
+Qed.
 
-(*
-* MCP - Working on checkExecSectionLowMemory and checkExecSec:
-*  
+Lemma checkCallAlignment_corr : forall (callAddrs : Int32Set.t),
+  checkCallAlignment callAddrs = true ->
+  forall (addr : int32), addr <=32 (repr ((two_power_nat 31) - 2)%Z) ->
+  Int32Set.In addr callAddrs ->
+  Zmod ((Word.unsigned addr) + 2) chunkSize = 0%Z.
+Proof.
+ intros. unfold checkCallAlignment in H. apply Int32Set.for_all_spec in H.
+ unfold Int32Set.For_all in H.
+ unfold aligned_bool in H.
+ rewrite -> Zeq_is_eq_bool.
+ replace (unsigned addr + 2)%Z with (unsigned (addr +32_p 2))%Z.
+ apply H. exact H1.
+ simpl.
+ rewrite <- eqmod_small_eq with (modul:=w32modulus) (x:=((unsigned addr + 2 mod w32modulus) mod w32modulus)%Z).
+ reflexivity.
+ apply eqmod_sym.
+ apply eqmod_mod. compute. reflexivity.
+  admit. admit. (*<-------------------------------------------------*)
+ apply aligned_bool_fun_proper.
+Qed.
 
-Lemma checkExecSectionLowMemoryDichotomy : forall start len lim s,  
-    checkExecSectionLowMemory start len lim s = (Okay_ans true, s) \/
-    checkExecSectionLowMemory start len lim s = (Okay_ans false, s).
-
-Lemma checkExecSectionLowMemoryEquation : forall start len lim s,
-    checkExecSectionLowMemory start len lim s = 
-        (Okay_ans (  )).
-
-Lemma checkExecSection_corr : forall iatB start len lim x, 
-    checkExecSection (iatB) (start, len, lim) = true
-        -> 
-*)
+Lemma checkExecSectionLowMem_corr : forall (start length : int32),
+  checkExecSectionLowMemory start length = true ->
+  (unsigned start <= unsigned (start +32 length))%Z
+    /\ ((Word.unsigned (Word.add start length) <= lowMemCutoff))%Z.
+Proof.
+  intros. unfold checkExecSectionLowMemory, checkNoOverflow, int32_lequ_bool in H.
+  rewrite -> andb_true_iff in H.
+  repeat rewrite -> int_lequ_true_iff in H.
+  destruct H.
+  split.
+    exact H0.
+    assert (unsigned (@repr 31 lowMemCutoff) = lowMemCutoff).
+      apply eqm_small_eq with (wordsize_minus_one:=31).
+      apply eqm_unsigned_repr.
+      compute. split. intro. contradict H1. discriminate. reflexivity.
+      compute. split. intro. contradict H1. discriminate. reflexivity.
+    rewrite -> H1 in H. exact H.
+Qed.
 
 
 (*** compiles to here ***)
