@@ -25,8 +25,6 @@ then the result holds. If it does not have all of them, then it does
 not hold *)
 
 
-(*------------------------ copied and pasted from VerifierCorrectness -------------------*)
-
 (* Copyright (c) 2011. Greg Morrisett, Gang Tan, Joseph Tassarotti, 
    Jean-Baptiste Tristan, and Edward Gan.
 
@@ -52,6 +50,8 @@ Require Import X86Lemmas.
 Require Import Monad.
 Require Import Int32.
 Require Import ReinsVerifierDFA.
+Require Import PEFormat.
+Require Import PETraversal.
 Require Import ReinsVerifier.
 Require Import ReinsDFACorrectness.
 Require Import REINSjmp.
@@ -446,7 +446,9 @@ Section VERIFIER_CORR.
   (* CHANGE *)
   Variable non_cflow_dfa : DFA.
   Variable dir_cflow_dfa : DFA.
-  Variable nacljmp_dfa : DFA.
+  Variable reinsjmp_nonIAT_dfa : DFA.
+  Variable reinsjmp_IAT_or_RET_dfa : DFA.
+  Variable reinsjmp_IAT_or_RET_mask : parser (pair_t instruction_t instruction_t).
 
   (* The trampoline region is a blessed region in the code segment. 
      It's inserted there by the loader and never checked by the validator.
@@ -456,12 +458,48 @@ Section VERIFIER_CORR.
   Variable trampoline_limit : int32.
 
   Definition checkProgram := 
-    FastVerifier.checkProgram non_cflow_dfa dir_cflow_dfa nacljmp_dfa.
+    ReinsVerifier.checkProgram 
+       non_cflow_dfa
+       dir_cflow_dfa
+       reinsjmp_nonIAT_dfa
+       reinsjmp_IAT_or_RET_dfa
+       reinsjmp_IAT_or_RET_mask.
+  Definition checkExecSection :=
+    ReinsVerifier.checkExecSection
+       non_cflow_dfa
+       dir_cflow_dfa
+       reinsjmp_nonIAT_dfa
+       reinsjmp_IAT_or_RET_dfa
+       reinsjmp_IAT_or_RET_mask.
   Definition process_buffer_aux := 
-    FastVerifier.process_buffer_aux non_cflow_dfa dir_cflow_dfa nacljmp_dfa.
+    ReinsVerifier.process_buffer_aux 
+       non_cflow_dfa
+       dir_cflow_dfa
+       reinsjmp_nonIAT_dfa
+       reinsjmp_IAT_or_RET_dfa
+       reinsjmp_IAT_or_RET_mask.
   Definition process_buffer := 
-    FastVerifier.process_buffer non_cflow_dfa dir_cflow_dfa nacljmp_dfa.
+    ReinsVerifier.process_buffer 
+       non_cflow_dfa
+       dir_cflow_dfa
+       reinsjmp_nonIAT_dfa
+       reinsjmp_IAT_or_RET_dfa
+       reinsjmp_IAT_or_RET_mask.
 
+  Fixpoint l2ll' {A} (n : nat) (l1 : list A) (l2 : list A) : list (list A) :=
+    match l1 with
+    | nil => match l2 with
+             | nil => nil
+             | _ => l2::nil
+             end
+    | a::l1' => match n with
+                | O => (l2 ++ (a :: nil))%list :: (l2ll' 2 l1' nil)
+                | S n' => l2ll' n' l1' (l2 ++ (a :: nil))
+                end
+    end. 
+
+   Definition l2ll {A} (l : list A) : list (list A) :=
+     l2ll' 2 l nil.
 
   (** * Definitions for aiding the verifier correctness proof *)
 
@@ -546,7 +584,7 @@ Section VERIFIER_CORR.
   (* CHANGE *)
   Definition safeState (s:rtl_state) (inv:Inv) :=
     let (sregs, code) := inv in 
-    let cpRes := checkProgram code in
+    let cpRes := checkProgram (l2ll code) in
       appropState s inv /\
       fst cpRes = true /\
       (Int32Set.In (PC s) (snd cpRes) \/ ~ inBoundCodeAddr (PC s) s).
