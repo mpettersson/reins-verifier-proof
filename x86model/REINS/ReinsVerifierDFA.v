@@ -39,7 +39,8 @@ Require Import X86Syntax.
 (* In NaCl, ChunkSize is either 16 or 32 *)
 Definition logChunkSize := 4%nat.
 Definition chunkSize := two_power_nat logChunkSize.
-Definition lowMemCutoff := two_power_nat 28%nat. (* d = 2^28 *)
+Definition lowMemZeroBits := 4%nat.
+Definition lowMemCutoff := two_power_nat ((wordsize 31) - lowMemZeroBits)%nat. (* d = 2^28 *)
 Notation int8_of_nat n := (@repr 7 (Z_of_nat n)).
 Definition safeMask := sub (@repr 31 lowMemCutoff) (@repr 31 chunkSize).
 

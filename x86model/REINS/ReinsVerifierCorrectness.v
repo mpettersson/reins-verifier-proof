@@ -36,7 +36,7 @@ not hold *)
    the License, or (at your option) any later version.
 *)
 
-
+Require Import Classical.
 Require Import Coqlib.
 Require Import Parser.
 Require Import Ascii.
@@ -193,25 +193,55 @@ Qed.
 (* if you AND any address with safeMask, you will get an aligned address *)
 Lemma and_safeMask_aligned : forall (v wd: int32),
   signed wd = signed safeMask -> aligned (Word.and v wd).
-Proof. 
+Proof.
   intros.
-    assert (signed wd = unsigned wd).
-      assert (signed safeMask = unsigned safeMask).
-        rewrite -> signed_safemask_eq. rewrite -> unsigned_safemask_eq.
-        reflexivity.
-      rewrite -> H. rewrite -> H0. apply unsigned_signed_eq. omega.
-        
-    assert (low_bits_zero 31 (unsigned wd) (Z_of_nat logChunkSize)).
-      apply multiple_low_bits_zero. vm_compute. omega.
-      rewrite -> H0 in H. rewrite -> H. rewrite -> signed_safemask_eq.
-      compute. reflexivity.
-    unfold aligned, aligned_bool.
-    apply ZOrderedType.Z_as_DT.eqb_eq.
-    apply low_bits_zero_multiple with (wordsize_minus_one := 31%nat).
-      unfold logChunkSize. compute. omega.
-      apply and_low_bits_zero.
-        apply inj_le. unfold logChunkSize. compute. omega.
-        exact H1.
+  assert (signed wd = unsigned wd).
+    assert (signed safeMask = unsigned safeMask).
+      rewrite -> signed_safemask_eq. rewrite -> unsigned_safemask_eq.
+      reflexivity.
+    rewrite -> H. rewrite -> H0. apply unsigned_signed_eq. omega.
+  assert (low_bits_zero 31 (unsigned wd) (Z_of_nat logChunkSize)).
+    apply multiple_low_bits_zero. vm_compute. omega.
+    rewrite -> H0 in H. rewrite -> H. rewrite -> signed_safemask_eq.
+    compute. reflexivity.
+  unfold aligned, aligned_bool.
+  apply ZOrderedType.Z_as_DT.eqb_eq.
+  apply low_bits_zero_multiple with (wordsize_minus_one := 31%nat).
+    unfold logChunkSize. compute. omega.
+    apply and_low_bits_zero.
+      apply inj_le. unfold logChunkSize. compute. omega.
+      exact H1.
+Qed.
+
+Lemma safeMask_low_mem :
+  high_bits_zero (signed safeMask) (Z_of_nat lowMemZeroBits) (wordsize 31).
+Proof.
+  change lowMemZeroBits with (wordsize 31 - (wordsize 31 - lowMemZeroBits))%nat.
+  apply lt_2k_high_bits_zero.
+  omega. compute.
+    split. intro. contradict H. discriminate. reflexivity.
+Qed.
+
+Lemma and_safeMask_low_mem : forall (v wd: int32),
+  signed wd = signed safeMask -> unsigned (Word.and v wd) < lowMemCutoff.
+Proof.
+  intros.
+  assert (signed wd = unsigned wd).
+    assert (signed safeMask = unsigned safeMask).
+      rewrite -> signed_safemask_eq. rewrite -> unsigned_safemask_eq.
+      reflexivity.
+    rewrite -> H. rewrite -> H0. apply unsigned_signed_eq. omega.
+  assert (high_bits_zero (unsigned wd) (Z_of_nat lowMemZeroBits) (wordsize 31)).
+    rewrite <- H0. rewrite -> H. apply safeMask_low_mem.
+  unfold lowMemCutoff. 
+  assert (0 <= unsigned (and v wd) < two_power_nat (wordsize 31 - lowMemZeroBits)).
+    apply high_bits_zero_lt_2k with (n := 31%nat).
+      apply unsigned_range.
+      compute. omega.
+      apply and_high_bits_zero.
+        simpl. omega.
+        simpl. simpl in H1. exact H1.
+   omega.
 Qed.
 
 Lemma and_safeMask_low_mem : forall (v wd: int32),

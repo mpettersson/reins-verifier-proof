@@ -1255,6 +1255,16 @@ Proof.
   case (zeq x 0); intro. auto. auto.
 Qed.
 
+Lemma bits_of_Z_one : forall (n : nat) (x : Z),
+  x > 0 -> bits_of_Z n 1 x = false.
+Proof.
+  induction n ; simpl ; intros.
+    reflexivity.
+    case (zeq x 0) ; intro. omegaContradiction.
+    apply bits_of_Z_zero.
+Qed.
+
+
 Lemma bits_of_Z_mone:
   forall n x,
   0 <= x < Z_of_nat n -> 
@@ -3706,6 +3716,638 @@ Proof. induction k. unfold low_bits_zero.
     subst i. trivial.
 Qed.
 
+Lemma low_bits_zero_even : forall z,
+  low_bits_zero z 1 -> Zeven z.
+Proof.
+  intros. unfold low_bits_zero in H.
+  specialize H with (i:=0).
+  assert (bits_of_Z wordsize z 0 = false).
+    apply H. omega.
+  destruct z.
+    simpl. auto.
+    destruct p.
+      contradict H0. simpl. discriminate.
+    simpl. auto.
+      contradict H0. simpl. discriminate.
+    destruct p.
+      contradict H0. simpl. discriminate.
+    simpl. auto.
+      contradict H0. simpl. discriminate.
+Qed.
+
+(* def and properties of high_bits_zero *)
+
+Require Import Classical.
+
+Definition high_bits_zero (z k : Z) (n : nat) := 
+  forall (i : Z),
+    0 <= i ->
+    (Z_of_nat n) - k <= i ->
+    bits_of_Z n z i = false.
+
+Lemma and_high_bits_zero : forall z v1 v2,
+  z <= Z_of_nat wordsize -> high_bits_zero (unsigned v2) z wordsize
+    -> high_bits_zero (unsigned (and v1 v2)) z wordsize.
+Proof.
+  unfold high_bits_zero. intros.
+  unfold and, bitwise_binop.
+  rewrite -> unsigned_repr2 by (apply Z_of_bits_range).
+  destruct (classic (i < Z_of_nat wordsize)).
+    (*i < wordsize*)
+    rewrite bits_of_Z_of_bits.
+    rewrite H0. apply andb_false_r.
+    exact H1. exact H2. omega.
+    (*i >= wordsize*)
+    rewrite -> bits_of_Z_above. reflexivity. omega.
+Qed.
+
+Lemma high_bits_zero_zero : forall (k : Z) (n : nat),
+  high_bits_zero 0 k n.
+Proof.
+  intros. unfold high_bits_zero. intros. apply bits_of_Z_zero.
+Qed.
+
+Require Import Coq.ZArith.BinInt.
+
+Lemma high_bits_zero_one : forall (k : Z) (n : nat),
+  k < Z_of_nat n -> high_bits_zero 1 k n.
+Proof.
+  intros. unfold high_bits_zero. intros.
+  apply bits_of_Z_one. omega.
+Qed.
+
+Lemma high_bits_zero_width : forall z k n,
+  (0 <= k <= n)%nat ->
+  high_bits_zero z (Z_of_nat k) n ->
+  bits_of_Z (n - k) z = bits_of_Z n z.
+Proof.
+  intros.
+  apply extensionality. intros.
+  destruct (classic (x < Z_of_nat n)).
+  destruct (classic (x < Z_of_nat (n - k))).
+  apply bits_of_Z_inc_width.
+    split.
+      exact H2.
+      rewrite -> inj_minus1.
+        omega.
+        omega.
+  assert (x >= Z_of_nat (n - k)) by omega.
+  rewrite -> bits_of_Z_above.
+    apply eq_sym.
+    unfold high_bits_zero in H0.
+    apply H0.
+      omega. rewrite <- inj_minus1 ; omega. omega.
+   repeat rewrite -> bits_of_Z_above.
+     reflexivity.
+     omega.
+     assert (Z_of_nat (n - k) <= Z_of_nat n).
+        rewrite -> inj_minus1.
+          omega.
+          omega.
+     omega.
+Qed.
+
+Lemma width_high_bits_zero : forall z k n,
+  (k <= n)%nat ->
+  0 <= z < two_power_nat n ->
+  bits_of_Z (n - k) z = bits_of_Z n z ->
+  high_bits_zero z (Z_of_nat k) n.
+Proof.
+  intros.
+  unfold high_bits_zero. intros.
+  rewrite <- H1. apply bits_of_Z_above.
+  rewrite <- inj_minus1 in H3. omega. omega.
+Qed.
+       
+Lemma higher_bits_zero : forall z k n,
+  (k <= n)%nat -> 
+  high_bits_zero z (Z_of_nat (S k)) n -> high_bits_zero z (Z_of_nat k) n.
+Proof.
+  intros.
+  destruct k.
+    (*k=0*)
+    unfold high_bits_zero. intros. simpl in H2.
+    apply bits_of_Z_above. simpl. omega.
+    (*k=S k'*)
+    unfold high_bits_zero in *. intros. apply H0.
+    exact H1.
+    assert (n - S (S k) <= n - S k)%nat.
+     replace (n - S (S k))%nat with ((n - k - 1) - 1)%nat ; omega.
+     assert (Z_of_nat (n - S (S k)) <= Z_of_nat (n - S k)).
+       apply inj_le. exact H3.
+     rewrite <- inj_minus1 in H2 ; [| omega].
+     destruct (classic (S (S k) <= n)%nat).
+       rewrite <- inj_minus1. omega. exact H5.
+       assert (S (S k) > n)%nat. omega. clear H5.
+       apply inj_gt in H6.
+       destruct (Z_of_nat (S (S k))).
+         omega. omega. omega.
+Qed.
+
+Require ZArith.Zpow_facts.
+
+Lemma two_power_nat_Zpower_2 : forall k,
+  two_power_nat k = 2^(Z_of_nat k).
+Proof.
+  induction k.
+    compute. reflexivity.
+    rewrite -> two_power_nat_S. rewrite inj_S.
+    rewrite -> Zpow_facts.Zpower_Zsucc. omega.
+    omega.
+Qed.
+
+Lemma Psize_ge_1 : forall p,
+  (Psize p >= 1)%nat.
+Proof.
+  induction p ; simpl Psize ; omega.
+Qed.
+
+Lemma bits_of_Z_shift_1 : forall x p n,
+ (0 < n)%nat ->
+  bits_of_Z (S n) (Zpos p~1) (Z_of_nat (S x)) =
+   bits_of_Z n (Zpos p) (Z_of_nat x).
+Proof.
+  induction x.
+    simpl. reflexivity.
+    intros. simpl.
+    destruct (P_of_succ_nat x) ; simpl.
+      rewrite <- Ppred_minus. simpl.
+      rewrite -> Pdouble_minus_one_o_succ_eq_xI. reflexivity.
+      rewrite <- Ppred_minus. simpl. reflexivity.
+      reflexivity.
+Qed.
+
+Lemma bits_of_Z_shift_0 : forall x p n,
+  (0 < n)%nat ->
+  bits_of_Z (S n) (Zpos p~0) (Z_of_nat (S x)) =
+   bits_of_Z n (Zpos p) (Z_of_nat x).
+Proof.
+  induction x.
+    simpl. reflexivity.
+    intros. simpl.
+    destruct (P_of_succ_nat x) ; simpl.
+      rewrite <- Ppred_minus. simpl.
+      rewrite -> Pdouble_minus_one_o_succ_eq_xI. reflexivity.
+      rewrite <- Ppred_minus. simpl. reflexivity.
+      reflexivity.
+Qed.
+
+Lemma Psize_bits_of_Z_false : forall p k x n,
+  (k <= x < n)%nat ->
+  (Psize p <= k)%nat ->
+  bits_of_Z n (Zpos p) (Z_of_nat x) = false.
+Proof.
+  induction p.
+    (*p=p'~1*)
+    intros. specialize (IHp) with (k:=(k-1)%nat) (x:=(x-1)%nat).
+    simpl in H0.
+    assert (Psize p >= 1)%nat by apply Psize_ge_1.
+    assert (exists x0, x = S x0). exists (x - 1)%nat. omega.
+    destruct H2. rewrite -> H2. rewrite -> bits_of_Z_inc_width with (m:=S n).
+    rewrite -> bits_of_Z_shift_1 by omega.
+    assert (x0 = x - 1)%nat by omega. rewrite -> H3.
+    apply IHp.
+      omega. omega.
+    repeat rewrite -> inj_S. omega.
+    (*p=p'~0*)
+    intros. specialize (IHp) with (k:=(k-1)%nat) (x:=(x-1)%nat).
+    simpl in H0.
+    assert (Psize p >= 1)%nat by apply Psize_ge_1.
+    assert (exists x0, x = S x0). exists (x - 1)%nat. omega.
+    destruct H2. rewrite -> H2. rewrite -> bits_of_Z_inc_width with (m:=S n).
+    rewrite -> bits_of_Z_shift_0 by omega.
+    assert (x0 = x - 1)%nat by omega. rewrite -> H3.
+    apply IHp.
+      omega. omega.
+    simpl in H1. repeat rewrite -> inj_S. omega.
+    (*p=1*)
+    intros. apply bits_of_Z_one.
+      assert (Psize 1 >= 1)%nat by apply Psize_ge_1.
+      omega.
+Qed.
+
+Lemma Lt_2k_width : forall z k n,
+  (0 <= k <= n)%nat ->
+  (0 <= z < two_power_nat k) ->
+  bits_of_Z k z = bits_of_Z n z.
+Proof.
+  intros. apply extensionality. intro.
+    destruct z.
+      repeat rewrite -> bits_of_Z_zero. reflexivity.
+      destruct (classic (x < Z_of_nat n)) ;
+      destruct (classic (x < Z_of_nat k)).
+      (*x < wordsize, x < k*)
+      apply bits_of_Z_inc_width. omega.
+      (*x < wordsize, x >= k*)
+      rewrite -> bits_of_Z_above. symmetry.
+      assert (exists x', x = Z_of_nat x'). apply Z_of_nat_complete. omega.
+      destruct H3. rewrite -> H3.
+      apply Psize_bits_of_Z_false with (k:=k).
+      split. omega. omega.
+      rewrite <- Zpow_facts.Zpower2_Psize.
+      rewrite <- two_power_nat_Zpower_2. omega. omega.
+      (*x >= wordsize, x < k*)
+      omegaContradiction.
+      (*x >= wordsize, x >= k*)
+      repeat rewrite -> bits_of_Z_above. reflexivity.
+        omega. omega.
+      assert (Zneg p < 0) by apply Zlt_neg_0.
+      omegaContradiction.
+Qed.
+
+Lemma lt_2k_high_bits_zero : forall z k n,
+  (0 <= k <= n)%nat ->
+  (0 <= z < two_power_nat k) ->
+  high_bits_zero z (Z_of_nat (n - k)) n.
+Proof.
+  intros.
+    apply width_high_bits_zero. omega.
+      split.
+        omega.
+        rewrite -> two_power_nat_two_p in *.
+        assert (two_p (Z_of_nat k) <= two_p (Z_of_nat n)).
+          apply two_p_monotone. omega.
+        omega.
+    apply Lt_2k_width.
+      replace (n - (n - k))%nat with k ; omega.
+      replace (n - (n - k))%nat with k ; omega.
+Qed.
+
+Lemma anti_extensionality : forall A B (f g : A -> B),
+  (exists x, f x <> g x) -> f <> g.
+Proof.
+  intros. contradict H. apply all_not_not_ex. rewrite -> H. auto.
+Qed.
+
+Lemma bits_of_Z_ge_two_power_nat: forall p n m,
+  (0 <= n <= m)%nat ->
+  bits_of_Z n (Zpos p) (Z_of_nat (n - 1)) = true ->
+  (Zpos p) >= two_power_nat (n - 1).
+Proof.
+  induction p.
+    (*p=p'~1*)
+    intros.
+    destruct (classic (n <= 0)%nat).
+      (*n = 0*)
+      assert (n = 0)%nat by omega.
+      contradict H0.
+      rewrite -> H2. simpl. discriminate.
+      (*n > 0*)
+      destruct (classic (n - 1 <= 0)%nat).
+        (*n - 1 = 0*)
+        assert (n - 1 = 0)%nat by omega.
+        rewrite -> Zpos_xI. rewrite -> H3. rewrite -> two_power_nat_O.
+        assert (Zpos p > 0) by apply Zgt_pos_0.
+        omega.
+        (*n - 1 > 0*)
+        assert (Zpos p > 0) by apply Zgt_pos_0.
+        rewrite -> Zpos_xI.
+        replace (n - 1)%nat with (S (n - 1 - 1)) ; [|omega].
+        rewrite -> two_power_nat_S.
+        assert (Zpos p >= two_power_nat (n-1-1)).
+          apply IHp with (m:=m). omega.
+          rewrite -> bits_of_Z_inc_width with (m:=m).
+          rewrite <- bits_of_Z_shift_1.
+          rewrite <- bits_of_Z_inc_width with (n:=n).
+          replace (S (n - 1 - 1))%nat with (n - 1)%nat ; [|omega].
+          exact H0.
+          split.
+            apply inj_lt. omega.
+            rewrite -> inj_S. omega.
+          omega.
+          split. 
+            apply inj_lt. omega.
+            apply inj_le. omega.
+        omega.
+  (*p=p'~0*)
+  intros.
+    destruct (classic (n <= 0)%nat).
+      (*n = 0*)
+      assert (n = 0)%nat by omega.
+      contradict H0.
+      rewrite -> H2. simpl. discriminate.
+      (*n > 0*)
+      destruct (classic (n - 1 <= 0)%nat).
+        (*n - 1 = 0*)
+        assert (n - 1 = 0)%nat by omega.
+        rewrite -> Zpos_xO. rewrite -> H3. rewrite -> two_power_nat_O.
+        assert (Zpos p > 0) by apply Zgt_pos_0.
+        omega.
+        (*n - 1 > 0*)
+        assert (Zpos p > 0) by apply Zgt_pos_0.
+        rewrite -> Zpos_xO.
+        replace (n - 1)%nat with (S (n - 1 - 1)) ; [|omega].
+        rewrite -> two_power_nat_S.
+        assert (Zpos p >= two_power_nat (n-1-1)).
+          apply IHp with (m:=m). omega.
+          rewrite -> bits_of_Z_inc_width with (m:=m).
+          rewrite <- bits_of_Z_shift_0.
+          rewrite <- bits_of_Z_inc_width with (n:=n).
+          replace (S (n - 1 - 1))%nat with (n - 1)%nat ; [|omega].
+          exact H0.
+          split.
+            apply inj_lt. omega.
+            rewrite -> inj_S. omega.
+          omega.
+          split. 
+            apply inj_lt. omega.
+            apply inj_le. omega.
+        omega.
+  (*p=1*)
+  intros.
+  destruct (classic (n = 1)%nat).
+    (*n = 1*)
+    rewrite -> H1. simpl. change (two_power_nat 0) with 1. omega.
+    (*n <> 1*)
+    destruct (classic (n > 1)%nat).
+    (*n > 1*)
+      contradict H0.
+      rewrite -> bits_of_Z_inc_width with (m:=m).
+      assert (bits_of_Z m 1 (Z_of_nat (n - 1)) = false).
+        apply bits_of_Z_one. change 0 with (Z_of_nat 0%nat).
+        apply inj_gt. omega.
+      rewrite -> H0. discriminate.
+      split.
+        apply inj_lt. omega.
+        omega.
+    (*n < 1; i.e. n = 0*)
+    replace n with 0%nat ; [|omega].
+    simpl. change (two_power_nat 0) with 1. omega.
+Qed.
+
+Lemma bits_of_Z_Zpos_exists_true : forall p n,
+  Zpos p < two_power_nat (S n) ->
+  exists k,
+  bits_of_Z (S n) (Zpos p) k = true.
+Proof.
+  intros p n.
+  elim p.
+    (*p=p~1*)
+    intros p0 H. apply or_to_imply. right.
+    econstructor.
+    instantiate (1:=0). simpl. reflexivity.
+    (*p=p~0*)
+    intros p0 H H0.
+    assert (Zpos p0 < two_power_nat (S n)).
+      rewrite -> Zpos_xO in H0. assert (Zpos p0 > 0) by apply Zgt_pos_0. omega.
+    destruct H as (k,H).
+      exact H1.
+    destruct (classic (0 <= k)).
+    destruct (classic (k < Z_of_nat n)).
+      (*0 <= k < Z_of_nat n*)
+      exists (Zsucc k). simpl.
+      rewrite -> zeq_false ; [|omega].
+      replace (Zsucc k - 1) with k ; [|omega].
+        rewrite -> bits_of_Z_inc_width with (m:=S n). exact H.
+          split. omega. apply inj_le. omega.
+      (*0 <= Z_of_nat n <= k*)
+      destruct (classic (k < Z_of_nat (S n))).
+        (*k = Z_of_nat n*)
+        assert (k = Z_of_nat n).
+          rewrite -> inj_S in H4. omega.
+        assert (Zpos p0~0 >= two_power_nat (S n)).
+          rewrite -> Zpos_xO. rewrite -> two_power_nat_S.
+            assert (Zpos p0 >= two_power_nat n).
+              replace n with ((S n) - 1)%nat ; [|omega].
+              apply bits_of_Z_ge_two_power_nat with (m:=(S n)).
+              omega. rewrite -> H5 in H.
+              replace (S n - 1)%nat with n.
+              exact H.
+              omega.
+            omega.
+        omegaContradiction.
+        (*k >= Z_of_nat (S n)*)
+        rewrite -> bits_of_Z_above in H ; [|omega]. contradict H. discriminate.
+      (*k < 0*)
+      rewrite -> bits_of_Z_below in H ; [|omega]. contradict H. discriminate.
+
+    (*p=1*)
+    exists 0. simpl. reflexivity.
+Qed.
+
+Lemma Width_lt_2k : forall z k n,
+  (0 <= z < two_power_nat (S n)) ->
+  (k <= S n)%nat ->
+  bits_of_Z k z = bits_of_Z (S n) z ->
+  (0 <= z < two_power_nat k).
+Proof.
+  destruct z. intros k n.
+    (*z = 0*)
+    assert (two_power_nat k > 0) by apply two_power_nat_pos. omega.
+    (*z=Zpos p*)
+    induction p ; intros.
+      (*p=p~1*)
+      destruct k.
+        (*k=0*)
+        contradict H1. apply anti_extensionality. exists 0. simpl. discriminate.
+        (*k=S k*)
+        rewrite -> Zpos_xI.
+        assert (0 <= Zpos p < two_power_nat k).
+        destruct (classic (n < 1)%nat). assert (n = 0)%nat by omega.
+          (*n < 1*)
+          assert (Zpos p > 0) by apply Zgt_pos_0. rewrite -> Zpos_xI in H.
+          rewrite -> two_power_nat_S in H. rewrite -> H3 in H.
+          rewrite -> two_power_nat_O in H. omegaContradiction.
+          (*n >= 1*)
+          assert (exists m, n = S m). exists (n - 1)%nat. omega.
+          destruct H3 as (m,H3).
+          apply IHp with (n:=m).
+          rewrite -> Zpos_xI in H. rewrite -> two_power_nat_S in H.
+          rewrite <- H3. omega.
+          omega.
+          replace (S k)%nat with ((S n) - ((S n) - S k))%nat in H1 ; [|omega].
+          apply width_high_bits_zero in H1. unfold high_bits_zero in H1.
+          apply extensionality. intro x.
+          destruct (classic (0 <= x)).
+          destruct (classic (x < Z_of_nat k)).
+            (*0 <= x < Z_of_nat k*)
+            rewrite -> bits_of_Z_inc_width with (m:=S m).
+            reflexivity. rewrite -> inj_S. omega.
+            (*0 <= x, Z_of_nat k <= x*)
+            destruct (classic (x < Zsucc (Z_of_nat k))).
+              (*Z_of_nat k = x*) 
+              assert (x = Z_of_nat k) by omega.
+              rewrite -> bits_of_Z_above. rewrite -> H7.
+              destruct (classic (S k < S n)%nat).
+                (*S k < S n*)
+                rewrite <- bits_of_Z_shift_1.
+                rewrite <- bits_of_Z_inc_width with (n:=S n).
+                symmetry. apply H1. rewrite -> inj_S. omega.
+                rewrite -> inj_minus1. repeat rewrite -> inj_S. omega.
+                omega.
+                split.
+                  apply inj_lt. omega.
+                  repeat rewrite -> inj_S. omega. omega.
+                (*S k >= S n*)
+                assert (S k = S n) by omega.
+                rewrite <- H3.
+                rewrite <- bits_of_Z_shift_1.
+                symmetry. apply H1.
+                omega. rewrite -> inj_minus1. repeat rewrite -> inj_S.
+                omega. omega. omega. omega.
+              (*Z_of_nat (S k) <= x*)
+              destruct (classic (x < Z_of_nat (S n))).
+                (* x < Z_of_nat (S n) *)
+                assert (exists x0, x = Z_of_nat x0). apply Z_of_nat_complete. omega.
+                destruct H8 as (x0,H8).
+                assert (exists x1, x0 = x1 - 1)%nat. exists (S x0). omega.
+                destruct H9 as (x1,H9).
+                rewrite -> bits_of_Z_above ; [|omega]. symmetry.
+                rewrite -> H8. rewrite -> H9.
+                destruct (classic (0 < x1)%nat).
+                destruct (classic (x1 < S n)%nat).
+                  (*0 < x1 < S n*)
+                  rewrite <- bits_of_Z_shift_1.
+                  rewrite <- bits_of_Z_inc_width with (n:=S n).
+                  apply H1. omega. repeat rewrite -> inj_minus1.
+                  rewrite -> inj_S. rewrite <- pred_of_minus.
+                  rewrite <- S_pred with (m:=0%nat). rewrite -> inj_S. omega. exact H10.
+                  exact H0.
+                  rewrite <- pred_of_minus. rewrite <- S_pred with (m:=0%nat).
+                  repeat rewrite -> inj_S. omega. omega. omega.
+                  (*0 < x1; S n <= x1*)
+                  rewrite -> inj_S in H7.
+                  assert (x1 = S n)%nat by omega. rewrite -> H12.
+                  apply bits_of_Z_above.
+                  rewrite -> H3. rewrite -> inj_minus1.
+                  repeat rewrite -> inj_S. simpl. omega. omega.
+                  (*x1 <= 0*)
+                  repeat rewrite -> bits_of_Z_above. reflexivity.
+                  rewrite -> inj_minus1. rewrite -> inj_S. omega.
+                  omega.
+                (*x >= Z_of_nat S n*)
+                repeat rewrite -> bits_of_Z_above. reflexivity.
+                rewrite <- H3. rewrite -> inj_S in H7. omega.
+                omega.
+            repeat rewrite -> bits_of_Z_below. reflexivity.
+            omega. omega.
+          omega. omega.
+        rewrite -> two_power_nat_S. omega.
+      (*p=p~0*)
+      destruct k.
+        (*k=0*)
+        assert (forall x, bits_of_Z 0 (Zpos p~0) x = false).
+          intros. simpl. reflexivity.
+        rewrite -> H1 in H2.
+        contradict H2. apply ex_not_not_all.
+        assert (exists m : Z, bits_of_Z (S n) (Zpos p~0) m = true).
+          apply bits_of_Z_Zpos_exists_true. omega.
+        destruct H2. exists x. rewrite -> H2. discriminate.
+        (*k=S k*)
+        rewrite -> Zpos_xO.
+        assert (0 <= Zpos p < two_power_nat k).
+        destruct (classic (n < 1)%nat). assert (n = 0)%nat by omega.
+          (*n < 1*)
+          assert (Zpos p > 0) by apply Zgt_pos_0. rewrite -> Zpos_xO in H.
+          rewrite -> two_power_nat_S in H. rewrite -> H3 in H.
+          rewrite -> two_power_nat_O in H. omegaContradiction.
+          (*n >= 1*)
+          assert (exists m, n = S m). exists (n - 1)%nat. omega.
+          destruct H3 as (m,H3).
+          apply IHp with (n:=m).
+          rewrite -> Zpos_xO in H. rewrite -> two_power_nat_S in H.
+          rewrite <- H3. omega.
+          omega.
+          replace (S k)%nat with ((S n) - ((S n) - S k))%nat in H1 ; [|omega].
+          apply width_high_bits_zero in H1. unfold high_bits_zero in H1.
+          apply extensionality. intro x.
+          destruct (classic (0 <= x)).
+          destruct (classic (x < Z_of_nat k)).
+            (*0 <= x < Z_of_nat k*)
+            rewrite -> bits_of_Z_inc_width with (m:=S m).
+            reflexivity. rewrite -> inj_S. omega.
+            (*0 <= x, Z_of_nat k <= x*)
+            destruct (classic (x < Zsucc (Z_of_nat k))).
+              (*Z_of_nat k = x*) 
+              assert (x = Z_of_nat k) by omega.
+              rewrite -> bits_of_Z_above. rewrite -> H7.
+              destruct (classic (S k < S n)%nat).
+                (*S k < S n*)
+                rewrite <- bits_of_Z_shift_0.
+                rewrite <- bits_of_Z_inc_width with (n:=S n).
+                symmetry. apply H1. rewrite -> inj_S. omega.
+                rewrite -> inj_minus1. repeat rewrite -> inj_S. omega.
+                omega.
+                split.
+                  apply inj_lt. omega.
+                  repeat rewrite -> inj_S. omega. omega.
+                (*S k >= S n*)
+                assert (S k = S n) by omega.
+                rewrite <- H3.
+                rewrite <- bits_of_Z_shift_0.
+                symmetry. apply H1.
+                omega. rewrite -> inj_minus1. repeat rewrite -> inj_S.
+                omega. omega. omega. omega.
+              (*Z_of_nat (S k) <= x*)
+              destruct (classic (x < Z_of_nat (S n))).
+                (* x < Z_of_nat (S n) *)
+                assert (exists x0, x = Z_of_nat x0). apply Z_of_nat_complete. omega.
+                destruct H8 as (x0,H8).
+                assert (exists x1, x0 = x1 - 1)%nat. exists (S x0). omega.
+                destruct H9 as (x1,H9).
+                rewrite -> bits_of_Z_above ; [|omega]. symmetry.
+                rewrite -> H8. rewrite -> H9.
+                destruct (classic (0 < x1)%nat).
+                destruct (classic (x1 < S n)%nat).
+                  (*0 < x1 < S n*)
+                  rewrite <- bits_of_Z_shift_0.
+                  rewrite <- bits_of_Z_inc_width with (n:=S n).
+                  apply H1. omega. repeat rewrite -> inj_minus1.
+                  rewrite -> inj_S. rewrite <- pred_of_minus.
+                  rewrite <- S_pred with (m:=0%nat). rewrite -> inj_S. omega. exact H10.
+                  exact H0.
+                  rewrite <- pred_of_minus. rewrite <- S_pred with (m:=0%nat).
+                  repeat rewrite -> inj_S. omega. omega. omega.
+                  (*0 < x1; S n <= x1*)
+                  rewrite -> inj_S in H7.
+                  assert (x1 = S n)%nat by omega. rewrite -> H12.
+                  apply bits_of_Z_above.
+                  rewrite -> H3. rewrite -> inj_minus1.
+                  repeat rewrite -> inj_S. simpl. omega. omega.
+                  (*x1 <= 0*)
+                  repeat rewrite -> bits_of_Z_above. reflexivity.
+                  rewrite -> inj_minus1. rewrite -> inj_S. omega.
+                  omega.
+                (*x >= Z_of_nat S n*)
+                repeat rewrite -> bits_of_Z_above. reflexivity.
+                rewrite <- H3. rewrite -> inj_S in H7. omega.
+                omega.
+            repeat rewrite -> bits_of_Z_below. reflexivity.
+            omega. omega.
+          omega. omega.
+        rewrite -> two_power_nat_S. omega.
+      (*p=1*)
+      destruct k.
+        (*k=0*)
+        contradict H1. apply anti_extensionality. exists 0. simpl. discriminate.
+        (*k=S k*)
+        split.
+          omega.
+          assert (two_power_nat k < two_power_nat (S k)).
+            apply two_power_nat_monotone.
+          assert (two_power_nat k > 0) by apply two_power_nat_pos.
+          omega.
+    (*z=Zneg p*) 
+    intros. assert (Zneg p < 0) by apply Zlt_neg_0.
+    omegaContradiction.
+Qed.
+
+Lemma high_bits_zero_lt_2k : forall z k n,
+  (0 <= z < two_power_nat (S n)) ->
+  (0 < k <= (S n))%nat ->
+  high_bits_zero z (Z_of_nat ((S n) - k)) (S n) ->
+  (0 <= z < two_power_nat k).
+Proof.
+  intros.
+    apply high_bits_zero_width in H1.
+      apply Width_lt_2k with (n:=n).
+        exact H.
+        omega.
+        replace ((S n) - ((S n) - k))%nat with k in H1 ; [|omega].
+        exact H1.      
+      omega.
+Qed.
+
 Lemma WordRing: ring_theory zero one add mul sub neg Logic.eq.
   constructor.
   apply zero_add.
@@ -3726,9 +4368,6 @@ Qed.
 Add Ring WordRing: WordRing.
 
 End WORDSIZE.
-
-
-
 
 Implicit Arguments add [wordsize_minus_one].
 Implicit Arguments sub [wordsize_minus_one].
