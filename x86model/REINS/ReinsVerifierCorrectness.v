@@ -243,13 +243,6 @@ Proof.
         simpl. simpl in H1. exact H1.
    omega.
 Qed.
-
-Lemma and_safeMask_low_mem : forall (v wd: int32),
- signed wd = signed safeMask -> unsigned (Word.and v wd) < lowMemCutoff.
-Proof.
- admit.
-Qed.
-
 (** * proving checkAligned is correct *)
 
 (* Unfolding checkAligned, 
@@ -327,9 +320,6 @@ Proof. unfold checkAligned. intros.
 Qed.
 
 (* New Lemmas! *)
-
-Require Import PEFormat.
-Require Import PETraversal.
 
 Lemma cons_nil_nil : forall A (a b : A) (l : list A),
   a :: l = b :: nil -> l = nil.
