@@ -1,5 +1,5 @@
-MODULES := Int32 PEFormat PETraversal ReinsVerifier ReinsVerifierDFA CompiledDFAs
-# REINSjmp ReinsDFACorrectness X86Lemmas ReinsVerifierCorrectness
+MODULES := Int32 PEFormat PETraversal ReinsVerifier ReinsVerifierDFA CompiledDFAs REINSjmp ReinsDFACorrectness X86Lemmas
+# ReinsVerifierCorrectness
 VS 	:= $(MODULES:%=%.v)
 
 .PHONY: coq clean
