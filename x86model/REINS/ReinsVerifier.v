@@ -347,4 +347,4 @@ Definition checkProgram' (data : list (list int8)) : (bool * Int32Set.t) :=
 (*Definition ncflow := make_dfa non_cflow_parser.
 Definition dbranch := make_dfa (alts dir_cflow).
 Definition ibranch := make_dfa (alts reinsjmp_mask).*)
-Extraction "reinsverif.ml" checkProgram'.
+(*Extraction "reinsverif.ml" checkProgram'.*)
