@@ -436,7 +436,23 @@ Proof.
  reflexivity.
  apply eqmod_sym.
  apply eqmod_mod. compute. reflexivity.
-  admit. admit. (*<-------------------------------------------------*)
+ apply Z_mod_lt. compute. reflexivity.
+  unfold int32_lequ_bool in H0. rewrite -> int_lequ_true_iff in H0.
+  split.
+    assert (0 <= unsigned addr).
+      apply unsigned_range.
+    omega.
+    rewrite -> unsigned_repr in H0. unfold modulus, wordsize.
+    rewrite -> two_power_nat_S.
+    assert (two_power_nat 31 > 0) by apply two_power_nat_pos.
+    omega. unfold max_unsigned. unfold modulus, wordsize.
+   assert (two_power_nat 31 > 0) by apply two_power_nat_pos.
+   rewrite -> two_power_nat_S with (n:=31%nat).
+   split.
+     do 2 rewrite -> two_power_nat_S.
+     assert (two_power_nat 29 > 0) by apply two_power_nat_pos.
+     omega.
+     omega.
  apply aligned_bool_fun_proper.
 Qed.
 
@@ -452,7 +468,7 @@ Proof.
   split.
     exact H0.
     assert (unsigned (@repr 31 lowMemCutoff) = lowMemCutoff).
-      apply eqm_small_eq with (wordsize_minus_one:=31).
+      apply eqm_small_eq with (wordsize_minus_one:=31%nat).
       apply eqm_unsigned_repr.
       compute. split. intro. contradict H1. discriminate. reflexivity.
       compute. split. intro. contradict H1. discriminate. reflexivity.
