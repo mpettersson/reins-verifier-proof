@@ -321,18 +321,6 @@ Qed.
 
 (* New Lemmas! *)
 
-Lemma cons_nil_nil : forall A (a b : A) (l : list A),
-  a :: l = b :: nil -> l = nil.
-Proof.
- admit.
-Qed.
-
-Lemma cons_nil_eq : forall A (a b : A) (l : list A),
-  a :: l = b :: nil -> a = b.
-Proof.
-  admit.
-Qed.
-
 Lemma fold_left_andb_forall : forall a l,
    fold_left andb (a::l) true = true ->
    a = true
@@ -385,31 +373,37 @@ Qed.
 
 Require Import MSetFacts.
 
-Lemma low_mem_proper: forall a b,
-  Morphisms.Proper ((fun x y : Int32_OT.t => eq x y = true) ==> Logic.eq)
-    (fun addr : Word.wint 31 => lequ a addr && lequ addr (a +32 b)).
-Proof. unfold Morphisms.Proper, Morphisms.respectful.
-  intros. apply int_eq_true_iff2 in H. prover.
-Qed.
-
 Lemma checkIATAddresses_corr :
    forall (addrs : Int32Set.t) (a b : int32),
    checkIATAddresses (iatbounds (a,b)) addrs = true ->
    forall (addr : int32), Int32Set.In addr addrs ->
-   ((Word.unsigned a) <= (Word.unsigned addr) <= (Word.unsigned (Word.add a b)))%Z.
+   ((Word.unsigned a) <= (Word.unsigned addr) <= (Word.unsigned (Word.add a b))
+    /\ modu addr (repr (Z_of_nat (wordsize 31))) = (repr 0)).
 Proof.
   intros.
   unfold checkIATAddresses in H.
   apply Int32Set.for_all_spec in H.
-  
   unfold Int32Set.For_all in H.
-  
   do 2 rewrite <- int_lequ_true_iff.
   rewrite <- andb_true_iff.
-  
+  rewrite <- int_eq_true_iff2.
+  rewrite <- andb_true_iff.
   apply H. exact H0.
-
-  apply low_mem_proper.
+  (*in order to apply Int32Set.for_all_spec on "Int32Set.for_all f s",
+    we must prove 'compatb f'; this unfolds to 
+    Proper (E.eq ==> Logic.eq) f, where E depends on the type of elements
+    of s.  This reads as "The respectful morphism applied to E.eq and Logic.eq
+    is proper", where,
+     - the "respectful morphism applied to binary relations (R : A -> A -> Prop)
+          and (R' : B -> B -> Prop)" gives the binary relation
+          (Rr : (A -> B) -> (A -> B) -> Prop) := fun f g => R x y -> R' (f x) (g y).
+     - a relation (R : A -> A -> Prop) is 'Proper' with respect to some element f
+       if (R f f) holds.
+    That is, 'compatb f' for (f : A -> B) says that it is possible to transform a
+    binary equality relation (R : A -> A -> Prop) to a binary relation over functions
+    of type (A -> B) such that f `=` f... that is, f "respects" standard equality*)
+  unfold Morphisms.Proper , Morphisms.respectful.
+  intros. rewrite -> int_eq_true_iff2 in H1. rewrite -> H1. reflexivity.
 Qed.
 
 Lemma aligned_bool_fun_proper:

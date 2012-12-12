@@ -269,7 +269,10 @@ Section BUILT_DFAS.
   Definition checkIATAddresses (iat : IATBounds) (iatAddresses : Int32Set.t) : bool :=
     match iat with
     | iatbounds (start, size) =>
-        let checkAddress addr := andb (lequ start addr) (lequ addr (start +32 size)) in
+        let checkAddress addr :=
+              andb
+                (andb (lequ start addr) (lequ addr (start +32 size)))
+                (eq (modu addr (repr (Z_of_nat (wordsize 31)))) (repr 0)) in
           Int32Set.for_all checkAddress iatAddresses
     end.
 
