@@ -406,13 +406,6 @@ Proof.
   intros. rewrite -> int_eq_true_iff2 in H1. rewrite -> H1. reflexivity.
 Qed.
 
-Lemma aligned_bool_fun_proper:
-  Morphisms.Proper ((fun x y : Int32_OT.t => eq x y = true) ==> Logic.eq)
-    (fun call : int32 => aligned_bool (call +32_p 2)).
-Proof. unfold Morphisms.Proper, Morphisms.respectful.
-  intros. apply int_eq_true_iff2 in H. prover.
-Qed.
-
 Lemma checkCallAlignment_corr : forall (callAddrs : Int32Set.t),
   checkCallAlignment callAddrs = true ->
   forall (addr : int32), addr <=32 (repr ((two_power_nat 31) - 2)%Z) ->
@@ -440,14 +433,15 @@ Proof.
     rewrite -> two_power_nat_S.
     assert (two_power_nat 31 > 0) by apply two_power_nat_pos.
     omega. unfold max_unsigned. unfold modulus, wordsize.
-   assert (two_power_nat 31 > 0) by apply two_power_nat_pos.
-   rewrite -> two_power_nat_S with (n:=31%nat).
-   split.
-     do 2 rewrite -> two_power_nat_S.
-     assert (two_power_nat 29 > 0) by apply two_power_nat_pos.
-     omega.
-     omega.
- apply aligned_bool_fun_proper.
+  assert (two_power_nat 31 > 0) by apply two_power_nat_pos.
+  rewrite -> two_power_nat_S with (n:=31%nat).
+  split.
+    do 2 rewrite -> two_power_nat_S.
+    assert (two_power_nat 29 > 0) by apply two_power_nat_pos.
+    omega.
+    omega.
+  unfold Morphisms.Proper, Morphisms.respectful.
+  intros. apply int_eq_true_iff2 in H. prover.
 Qed.
 
 Lemma checkExecSectionLowMem_corr : forall (start length : int32),
