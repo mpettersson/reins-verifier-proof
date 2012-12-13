@@ -1,10 +1,10 @@
-MODULES := Int32 PEFormat PETraversal ReinsVerifier ReinsVerifierDFA CompiledDFAs REINSjmp ReinsDFACorrectness X86Lemmas
+MODULES := Int32 PEFormat PETraversal ReinsVerifier ReinsVerifierDFA CompiledDFAs REINSjmp Parser X86Lemmas ReinsDFACorrectness 
 # ReinsVerifierCorrectness
 VS 	:= $(MODULES:%=%.v)
 
 .PHONY: coq clean
 
-coq: Makefile.coq
+coq: Makefile.coq 
 	$(MAKE) -f Makefile.coq
 
 Makefile.coq: Makefile $(VS)
