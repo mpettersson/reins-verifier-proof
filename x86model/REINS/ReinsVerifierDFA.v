@@ -203,11 +203,16 @@ Definition reins_nonIAT_MASK_p (r: register) : parser instruction_t :=
      * register   --      = 3 bits that pick which register
      * mask       --      = a 32-bit immediate value
      *)
-    "1000" $$ "0001" $$ "11" $$ bits "100"
+    ("1000" $$ "0001" $$ "11" $$ bits "100"
     $ bitslist (register_to_bools r)             (* Register *)
     $ int32_p safeMask
     @ (fun _ => AND true (Reg_op r) (Imm_op safeMask)
-      %% instruction_t).
+      %% instruction_t)).
+
+Definition reins_nonIAT_MASK_EAX25_p : parser instruction_t :=
+    ("00100" $$ bits "101" $ int32_p safeMask
+    @ (fun _ => AND true (Reg_op EAX) (Imm_op safeMask)
+      %% instruction_t)).
 
 (* Jumps that target the IAT must have the return address, [ESP], masked *)
 Definition reins_IAT_or_RET_MASK_p : parser instruction_t :=
@@ -276,23 +281,16 @@ Definition reins_IAT_JMP_p : parser instruction_t :=
 Definition reinsjmp_nonIAT_p (r: register) : parser (pair_t instruction_t instruction_t) :=
     reins_nonIAT_MASK_p r $ (reins_nonIAT_JMP_p r |+| reins_nonIAT_CALL_p r).
 
+Definition reinsjmp_nonIAT_EAX25_p : parser (pair_t instruction_t instruction_t) :=
+    reins_nonIAT_MASK_EAX25_p $ (reins_nonIAT_JMP_p EAX |+| reins_nonIAT_CALL_p EAX).
+
 Definition reinsjmp_IAT_or_RET_p : parser (pair_t instruction_t instruction_t) :=
     reins_IAT_or_RET_MASK_p $ (reins_IAT_JMP_p |+| RET_p).
   
-
-Definition b8 := true::false::false::false::nil.
-Definition b3 := false::false::true::true::nil.
-Definition be := true::true::true::false::nil.
-Definition b0 := false::false::false::false::nil.
-Definition bf := true::true::true::true::nil.
-
-Definition mybits := b8 ++ b3 ++ be ++ b0 ++ be ++ b0 ++ bf ++ bf ++ be ++ b0.
-
-
 (* All possible forms of the reinsjmp *)
 Definition reinsjmp_nonIAT_mask : parser (pair_t instruction_t instruction_t) := 
   alts (reinsjmp_nonIAT_p EAX :: reinsjmp_nonIAT_p ECX :: reinsjmp_nonIAT_p EDX :: reinsjmp_nonIAT_p EBX ::
-  reinsjmp_nonIAT_p EBP :: reinsjmp_nonIAT_p ESI :: reinsjmp_nonIAT_p EDI :: nil).
+  reinsjmp_nonIAT_p EBP :: reinsjmp_nonIAT_p ESI :: reinsjmp_nonIAT_p EDI :: reinsjmp_nonIAT_EAX25_p :: nil).
 
 Definition reinsjmp_IAT_or_RET_mask : parser (pair_t instruction_t instruction_t) :=
     reinsjmp_IAT_or_RET_p.
