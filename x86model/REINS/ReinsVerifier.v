@@ -270,9 +270,9 @@ Section BUILT_DFAS.
     match iat with
     | iatbounds (start, size) =>
         let checkAddress addr :=
-              andb
+	     andb
                 (andb (lequ start addr) (lequ addr (start +32 size)))
-                (eq (modu addr (repr (Z_of_nat (wordsize 31)))) (repr 0)) in
+                (eq (modu (addr -32 start) (repr (Z_of_nat (wordsize 31)))) (repr 0)) in
           Int32Set.for_all checkAddress iatAddresses
     end.
 
