@@ -83,7 +83,10 @@ Section BUILT_DFAS.
   Variable dir_cflow_dfa : DFA.
   Variable reinsjmp_nonIAT_dfa : DFA.
   Variable reinsjmp_IAT_or_RET_dfa : DFA.
+  Variable reinsjmp_IAT_CALL_dfa : DFA.
+  Variable reinsjmp_nonIAT_mask : parser (pair_t instruction_t instruction_t).
   Variable reinsjmp_IAT_or_RET_mask : parser (pair_t instruction_t instruction_t).
+  Variable reinsjmp_IAT_CALL_p : parser instruction_t.
 
   (* G.T.: may be a good idea to parametrize the DFA w.r.t. the ChunkSize;
      Google's verifier allows it either to be 16 or 32.
@@ -138,7 +141,7 @@ Section BUILT_DFAS.
     end.
 
 
-  Definition extract_indirect_jmp bytes : option (option address) :=
+  Definition extract_IAT_jmp_dest bytes : option (option address) :=
     let regexp_pair := parser2regexp reinsjmp_IAT_or_RET_mask in
     let ips := mkPS' (snd regexp_pair) (fst regexp_pair) (p2r_wf reinsjmp_IAT_or_RET_mask _) in
     match (parseloop' ips bytes) with
@@ -147,9 +150,44 @@ Section BUILT_DFAS.
     | _ => None
     end.
 
-  Definition is_call bytes : bool :=
-    let regexp_pair := parser2regexp reinsjmp_IAT_or_RET_mask in
-    let ips := mkPS' (snd regexp_pair) (fst regexp_pair) (p2r_wf reinsjmp_IAT_or_RET_mask _) in
+  (* parseloop, X86_PARSER.parse_byte, and X86_PARSER.instParserState all have a
+     too-restrictive type, expecting the underlying parser to parse a prefix and
+     an instruction. For our IAT call extraction, we want a single instruction. *)
+
+  Record instParserState'' := mkPS'' {
+      inst_ctxt'' : ctxt_t;
+      inst_regexp'' : regexp instruction_t;
+      inst_regexp_wf'' : wf_regexp inst_ctxt'' inst_regexp''
+  }.
+
+  Definition parse_byte'' (ps:instParserState'') (b:int8) : 
+    instParserState'' * list instr := 
+    let cs := byte_explode b in 
+    let r' := deriv_parse' (inst_regexp'' ps) cs in
+    let wf' := wf_derivs (inst_ctxt'' ps) cs (inst_regexp'' ps) (inst_regexp_wf'' ps) in
+      (mkPS'' (inst_ctxt'' ps) r' wf', apply_null (inst_ctxt'' ps) r' wf').
+
+  Fixpoint parseloop'' (ps:instParserState'') (bytes:list int8) : 
+    option (instr * list int8) := 
+    match bytes with 
+      | nil => None
+      | b::bs => match parse_byte'' ps b with 
+                   | (ps',nil) => parseloop'' ps' bs
+                   | (_, v::_) => Some (v,bs)
+                 end
+    end.
+
+  Definition extract_IAT_call_dest bytes : option address :=
+    let regexp_pair := parser2regexp (reinsjmp_IAT_CALL_p) in
+    let ips := mkPS'' (snd regexp_pair) (fst regexp_pair) (p2r_wf (reinsjmp_IAT_CALL_p) _) in
+    match (parseloop'' ips bytes) with
+    | Some (CALL true true (Address_op addr) None, _) => Some addr
+    | _ => None
+    end.
+
+  Definition is_nonIAT_call bytes : bool :=
+    let regexp_pair := parser2regexp (reinsjmp_nonIAT_mask) in
+    let ips := mkPS' (snd regexp_pair) (fst regexp_pair) (p2r_wf (reinsjmp_nonIAT_mask) _) in
     match (parseloop' ips bytes) with
     | Some ((_, CALL _ _ _ _), _) => true
     | _ => false
@@ -179,13 +217,16 @@ Section BUILT_DFAS.
              (dfa_recognize 256 non_cflow_dfa              chunk,
               dfa_recognize 256 dir_cflow_dfa              chunk,
               dfa_recognize 256 reinsjmp_nonIAT_dfa        chunk,
-              dfa_recognize 256 reinsjmp_IAT_or_RET_dfa    chunk) with
+              dfa_recognize 256 reinsjmp_IAT_or_RET_dfa    chunk,
+              dfa_recognize 256 reinsjmp_IAT_CALL_dfa      chunk) with
 
-            | (Some (len, remaining), None, None, None) => 
+            (* Non-Control-Flow Only *)
+            | (Some (len, remaining), None, None, None, None) => 
               process_buffer_aux (loc +32_n len) m (remaining::rest)
               (Int32Set.add loc start_instrs, check_list, iat_check_list, call_check_list)
 
-            | (None, Some (len, remaining), None, None) => 
+            (* Direct Control-Flow (Only) *)
+            | (None, Some (len, remaining), None, None, None) => 
               match extract_disp (List.map token2byte (firstn len chunk)) with
                 | None => None
                 | Some disp => 
@@ -196,28 +237,47 @@ Section BUILT_DFAS.
                    call_check_list)
               end
 
-            | (Some res0, None, Some (len, remaining), None) => 
+            (* Non-IAT Indirect Control Flow (with Non-Control-Flow mask) *)
+            | (Some res0, None, Some (len, remaining), None, None) => 
               process_buffer_aux (loc +32_n len) m (remaining::rest)
-              (if is_call (List.map token2byte (firstn len chunk)) then
+              (if is_nonIAT_call (List.map token2byte (firstn len chunk)) then
                   (Int32Set.add loc start_instrs, check_list, iat_check_list,
                    Int32Set.add loc call_check_list)
               else
                   (Int32Set.add loc start_instrs, check_list, iat_check_list, call_check_list))
 
-            | (Some res0, None, None, Some (len, remaining)) =>
-              match extract_indirect_jmp (List.map token2byte (firstn len chunk)) with
+            (* IAT Indirect Jump or Retrun (with Non-Control-Flow mask) *)
+            | (Some res0, None, None, Some (len, remaining), None) =>
+              match extract_IAT_jmp_dest (List.map token2byte (firstn len chunk)) with
+              (* Not an actual IAT jmp or RET (shouldn't happen) *)
               | None => None
+              (* IAT jmp *)
               | Some (Some indir) =>
                 process_buffer_aux (loc +32_n len) m (remaining::rest)
                 (Int32Set.add loc start_instrs, check_list,
                  Int32Set.add (addrDisp indir) iat_check_list,
                  call_check_list)
+              (* RET *)
               | Some None =>
                 process_buffer_aux (loc +32_n len) m (remaining::rest)
                 (Int32Set.add loc start_instrs, check_list, iat_check_list, call_check_list)
               end
 
-            | _ => None (* None of the DFAs matched or too many DFAs matched *)
+            (* IAT Call Only (No Mask necessary) *)
+            | (None, None, None, None, Some (len, remaining)) =>
+              match extract_IAT_call_dest (List.map token2byte (firstn len chunk)) with
+              (* Not actually an IAT call (shouldn't happen) *)
+              | None => None
+              (* IAT Call *)
+              | Some indir =>
+                process_buffer_aux (loc +32_n len) m (remaining::rest)
+                (Int32Set.add loc start_instrs, check_list,
+                Int32Set.add (addrDisp indir) iat_check_list,
+                Int32Set.add loc call_check_list)
+              end
+
+            (* None of the DFAs matched or too many DFAs matched *)
+            | _ => None
             end
           end
         end
@@ -343,11 +403,11 @@ Definition checkProgram' (data : list (list int8)) : (bool * Int32Set.t) :=
       non_cflow_dfa
       dir_cflow_dfa
       reinsjmp_nonIAT_dfa
-      reinsjmp_IAT_or_RET_dfa
-      reinsjmp_IAT_or_RET_mask
+      reinsjmp_IAT_JMP_or_RET_dfa
+      reinsjmp_IAT_CALL_dfa
+      reinsjmp_nonIAT_mask
+      reinsjmp_IAT_JMP_or_RET_mask
+      reinsjmp_IAT_CALL_p
       data.
 
-(*Definition ncflow := make_dfa non_cflow_parser.
-Definition dbranch := make_dfa (alts dir_cflow).
-Definition ibranch := make_dfa (alts reinsjmp_mask).*)
 (*Extraction "reinsverif.ml" checkProgram'.*)

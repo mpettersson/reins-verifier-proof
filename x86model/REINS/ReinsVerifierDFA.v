@@ -194,7 +194,7 @@ Definition int32_p (i : int32) : parser unit_t :=
 
 (* Jumps that don't target the IAT must be preceded by a masking instruction
    a la nacl *)
-Definition reins_nonIAT_MASK_p (r: register) : parser instruction_t :=
+Definition reinsjmp_nonIAT_MASK_p (r: register) : parser instruction_t :=
     (* The masking AND is encoded as follows:
      * "10000001" -- 0x81 = (opcode) AND r/m32 imm32 (32 from prefix)
      * "11"       --      = Mod = 3: the first operand is from a register
@@ -209,13 +209,13 @@ Definition reins_nonIAT_MASK_p (r: register) : parser instruction_t :=
     @ (fun _ => AND true (Reg_op r) (Imm_op safeMask)
       %% instruction_t)).
 
-Definition reins_nonIAT_MASK_EAX25_p : parser instruction_t :=
+Definition reinsjmp_nonIAT_MASK_EAX25_p : parser instruction_t :=
     ("00100" $$ bits "101" $ int32_p safeMask
     @ (fun _ => AND true (Reg_op EAX) (Imm_op safeMask)
       %% instruction_t)).
 
 (* Jumps that target the IAT must have the return address, [ESP], masked *)
-Definition reins_IAT_or_RET_MASK_p : parser instruction_t :=
+Definition reinsjmp_IAT_or_RET_MASK_p : parser instruction_t :=
     (* The masking AND is encoded as follows:
      * "10000001" -- 0x81 = (opcode) AND r/m32 imm32 (32 from prefix)
      * "00"       --      = Mod = 0: the first operand is a memory address
@@ -240,7 +240,7 @@ Definition reins_IAT_or_RET_MASK_p : parser instruction_t :=
  * jmp/call r, and not jmp/call [r]; only when r points to an address
  * in the IAT is the second form allowed (see below)
  *)
-Definition reins_nonIAT_JMP_p  (r: register) : parser instruction_t :=
+Definition reinsjmp_nonIAT_JMP_p  (r: register) : parser instruction_t :=
     (* The jmp instruction is encoded as follows:
      * "11111111" -- 0xFF = (opcode) JMP r/m32
      * "11"       --      = Mod = 3: the first (only) operand is from a register
@@ -251,7 +251,7 @@ Definition reins_nonIAT_JMP_p  (r: register) : parser instruction_t :=
     $ bitslist (register_to_bools r)  @ 
     (fun _ =>  JMP true true (Reg_op r) None %% instruction_t).
 
-Definition reins_nonIAT_CALL_p (r: register) : parser instruction_t :=
+Definition reinsjmp_nonIAT_CALL_p (r: register) : parser instruction_t :=
     (* The jmp instruction is encoded as follows:
      * "11111111" -- 0xFF = (opcode) CALL r/m32
      * "11"       --      = Mod = 3: the first (only) operand is from a register
@@ -265,7 +265,7 @@ Definition reins_nonIAT_CALL_p (r: register) : parser instruction_t :=
     (fun _ => CALL true true (Reg_op r) None %% instruction_t).
 
 (* Jumps that target the IAT, of form jmp [r] *)
-Definition reins_IAT_JMP_p : parser instruction_t :=
+Definition reinsjmp_IAT_JMP_p : parser instruction_t :=
     (* The jmp instruction is encoded as follows:
      * "11111111" -- 0xFF = (opcode) JMP r/m32
      * "00"       --      = Mod = 0: the first operand is a memory address
@@ -278,37 +278,36 @@ Definition reins_IAT_JMP_p : parser instruction_t :=
     "1111" $$ "1111" $$ "00" $$ "100" $$ "101" $$ word  @ 
     (fun disp => JMP true true (Address_op (mkAddress disp None None)) None %% instruction_t).
 
+(* Jumps that target the IAT, of form jmp [r] *)
+Definition reinsjmp_IAT_CALL_p : parser instruction_t :=
+    (* The jmp instruction is encoded as follows:
+     * "11111111" -- 0xFF = (opcode) JMP r/m32
+     * "00"       --      = Mod = 0: the first operand is a memory address
+     *                               stored in a register or using a Scale-Index-Base Byte
+     *                               or is a 32-byte immediate
+     * "010"      --      = reg/opcode = 4: this is an opcode extension
+     * "101"      --      = r/m = 5: use a 32-byte immediate
+     * word       --      = the 32-byte immediate
+     *)
+    "1111" $$ "1111" $$ "00" $$ "010" $$ "101" $$ word  @ 
+    (fun disp => CALL true true (Address_op (mkAddress disp None None)) None %% instruction_t).
+
 Definition reinsjmp_nonIAT_p (r: register) : parser (pair_t instruction_t instruction_t) :=
-    reins_nonIAT_MASK_p r $ (reins_nonIAT_JMP_p r |+| reins_nonIAT_CALL_p r).
+    reinsjmp_nonIAT_MASK_p r $ (reinsjmp_nonIAT_JMP_p r |+| reinsjmp_nonIAT_CALL_p r).
 
 Definition reinsjmp_nonIAT_EAX25_p : parser (pair_t instruction_t instruction_t) :=
-    reins_nonIAT_MASK_EAX25_p $ (reins_nonIAT_JMP_p EAX |+| reins_nonIAT_CALL_p EAX).
+    reinsjmp_nonIAT_MASK_EAX25_p $ (reinsjmp_nonIAT_JMP_p EAX |+| reinsjmp_nonIAT_CALL_p EAX).
 
-Definition reinsjmp_IAT_or_RET_p : parser (pair_t instruction_t instruction_t) :=
-    reins_IAT_or_RET_MASK_p $ (reins_IAT_JMP_p |+| RET_p).
-  
+Definition reinsjmp_IAT_JMP_or_RET_p : parser (pair_t instruction_t instruction_t) :=
+    reinsjmp_IAT_or_RET_MASK_p $ (reinsjmp_IAT_JMP_p |+| RET_p).
+
 (* All possible forms of the reinsjmp *)
 Definition reinsjmp_nonIAT_mask : parser (pair_t instruction_t instruction_t) := 
   alts (reinsjmp_nonIAT_p EAX :: reinsjmp_nonIAT_p ECX :: reinsjmp_nonIAT_p EDX :: reinsjmp_nonIAT_p EBX ::
   reinsjmp_nonIAT_p EBP :: reinsjmp_nonIAT_p ESI :: reinsjmp_nonIAT_p EDI :: reinsjmp_nonIAT_EAX25_p :: nil).
 
-Definition reinsjmp_IAT_or_RET_mask : parser (pair_t instruction_t instruction_t) :=
-    reinsjmp_IAT_or_RET_p.
-
-  Fixpoint parseloop ps bytes := 
-    match bytes with 
-      | nil => None
-      | b::bs => match Decode.X86_PARSER.parse_byte ps b with 
-                   | (ps', nil) => parseloop ps' bs
-                     (* JGM: FIX!  What to do with prefix? *)
-                   | (ps', (pfx,JMP true false (Imm_op disp) sel)::_) => 
-                     match bs with 
-                       | nil => Some disp
-                       | _ => None
-                     end
-                   | (ps', _) => None
-                 end
-    end.
+Definition reinsjmp_IAT_JMP_or_RET_mask : parser (pair_t instruction_t instruction_t) :=
+    reinsjmp_IAT_JMP_or_RET_p.
 
 (** Next, we define a boolean-valued test that tells whether an instruction
     is a valid non-control-flow instruction.  We should have the property
@@ -466,8 +465,3 @@ Definition reinsjmp_IAT_or_RET_mask_instr (pfx1:prefix) (ins1:instr) (pfx2:prefi
       end
     | _ => false
   end.
-
-Definition dfas := (make_dfa non_cflow_parser, make_dfa (alts dir_cflow), make_dfa reinsjmp_nonIAT_mask, make_dfa reinsjmp_IAT_or_RET_mask).
-(* Extraction "tables.ml" dfas.*)
-
-
