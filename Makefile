@@ -1,8 +1,8 @@
 
 all:
-	$(MAKE) -c Model
-	$(MAKE) -c REINS
-	$(MAKE) -c Test
+	$(MAKE) -C Model
+	$(MAKE) -C REINS
+	$(MAKE) -C Test
 
 clean: 
 	rm Model/*.vo
