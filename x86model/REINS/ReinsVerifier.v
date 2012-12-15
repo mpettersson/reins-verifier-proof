@@ -104,11 +104,16 @@ Section BUILT_DFAS.
                  end
     end.
 
-  Definition extract_disp bytes := 
+  Inductive jumptype : Set :=
+  | JMP_t : jumptype
+  | JCC_t : jumptype
+  | CALL_t: jumptype.
+
+  Definition extract_disp_and_type bytes : option (int32 * jumptype) := 
     match (parseloop Decode.X86_PARSER.initial_parser_state bytes) with
-      | Some ((_, JMP true false (Imm_op disp) None), _) => Some disp
-      | Some ((_, Jcc ct disp), _) => Some disp
-      | Some ((_, CALL true false (Imm_op disp) None), _) => Some disp
+      | Some ((_, JMP true false (Imm_op disp) None), _) => Some (disp, JMP_t)
+      | Some ((_, Jcc ct disp), _) => Some (disp, JCC_t)
+      | Some ((_, CALL true false (Imm_op disp) None), _) => Some (disp, CALL_t)
       | _ => None
     end.
 
@@ -227,14 +232,21 @@ Section BUILT_DFAS.
 
             (* Direct Control-Flow (Only) *)
             | (None, Some (len, remaining), None, None, None) => 
-              match extract_disp (List.map token2byte (firstn len chunk)) with
-                | None => None
-                | Some disp => 
+              match extract_disp_and_type (List.map token2byte (firstn len chunk)) with
+                | Some (disp, JMP_t)
+                | Some (disp, JCC_t) => 
                   process_buffer_aux (loc +32_n len) m (remaining::rest)
                   (Int32Set.add loc start_instrs,
                    Int32Set.add (loc +32_n len +32 disp) check_list,
                    iat_check_list,
                    call_check_list)
+                | Some (disp, CALL_t) =>
+                  process_buffer_aux (loc +32_n len) m (remaining::rest)
+                  (Int32Set.add loc start_instrs,
+                   Int32Set.add (loc +32_n len +32 disp) check_list,
+                   iat_check_list,
+                   Int32Set.add (loc +32_n len) call_check_list)
+                | _ => None
               end
 
             (* Non-IAT Indirect Control Flow (with Non-Control-Flow mask) *)
@@ -242,7 +254,7 @@ Section BUILT_DFAS.
               process_buffer_aux (loc +32_n len) m (remaining::rest)
               (if is_nonIAT_call (List.map token2byte (firstn len chunk)) then
                   (Int32Set.add loc start_instrs, check_list, iat_check_list,
-                   Int32Set.add loc call_check_list)
+                   Int32Set.add (loc +32_n len) call_check_list)
               else
                   (Int32Set.add loc start_instrs, check_list, iat_check_list, call_check_list))
 
@@ -273,7 +285,7 @@ Section BUILT_DFAS.
                 process_buffer_aux (loc +32_n len) m (remaining::rest)
                 (Int32Set.add loc start_instrs, check_list,
                 Int32Set.add (addrDisp indir) iat_check_list,
-                Int32Set.add loc call_check_list)
+                Int32Set.add (loc +32_n len) call_check_list)
               end
 
             (* None of the DFAs matched or too many DFAs matched *)
@@ -337,10 +349,7 @@ Section BUILT_DFAS.
     end.
 
   Definition checkCallAlignment (callAddrs : Int32Set.t) : bool :=
-    let checkCall (call : int32) : bool :=
-      aligned_bool (call +32 (repr 2)) (*Allowed CALL instructions are always 2 bytes*)
-    in
-      Int32Set.for_all checkCall callAddrs.
+    Int32Set.for_all aligned_bool callAddrs.
 
   (* A section is in low memory if its end (start + length) is <= lowMemCutoff,
      and the addition doesn't overflow *)
