@@ -1,25 +1,16 @@
-What you will find in this tarball:
+Verifying Reins in Coq
 
-./x86model/
-	A Coq formalization of a Pentium
+Dependencies:
 
-./x86model/bintocoq
-		An OCaml implementation of the REINS verifier
+Coq 8.3pl2 - 8.3pl5 (8.4 does not work)
+*include link*
+OCaml 3.12 or higher
+http://caml.inria.fr/download.en.html
 
-./x86model/cdriver
-		A C implementation of an SFI checker using our certified DFAs
+Compiling:
 
-./x86model/fuzz
-		A fuzz tester for the x86 model
+Go to reins-verifier-proof directory and run 'make'
+This compiles the Model, REINS, and Test folders.
 
-./x86model/Model
-		The CPU model
 
-./x86model/REINS
-		A Coq implementation of the REINS verifier 
 
-./x86model/RockSalt
-		A formally verified SFI checker based on our model of x86
-
-./x86model/semantics_trace
-		Simulation and instrumentation of x86 binaries
