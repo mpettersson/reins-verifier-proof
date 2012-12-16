@@ -419,4 +419,4 @@ Definition checkProgram' (data : list (list int8)) : (bool * Int32Set.t) :=
       reinsjmp_IAT_CALL_p
       data.
 
-(*Extraction "reinsverif.ml" checkProgram'.*)
+Extraction "reinsverif.ml" checkProgram'.
