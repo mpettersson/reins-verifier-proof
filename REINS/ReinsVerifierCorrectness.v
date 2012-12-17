@@ -378,7 +378,7 @@ Lemma checkIATAddresses_corr :
    checkIATAddresses (iatbounds (a,b)) addrs = true ->
    forall (addr : int32), Int32Set.In addr addrs ->
    ((Word.unsigned a) <= (Word.unsigned addr) <= (Word.unsigned (Word.add a b))
-    /\ modu addr (repr (Z_of_nat (wordsize 31))) = (repr 0)).
+    /\ modu (addr -32 a) (repr (Z_of_nat (wordsize 31))) = (repr 0)).
 Proof.
   intros.
   unfold checkIATAddresses in H.
@@ -410,38 +410,15 @@ Lemma checkCallAlignment_corr : forall (callAddrs : Int32Set.t),
   checkCallAlignment callAddrs = true ->
   forall (addr : int32), addr <=32 (repr ((two_power_nat 31) - 2)%Z) ->
   Int32Set.In addr callAddrs ->
-  Zmod ((Word.unsigned addr) + 2) chunkSize = 0%Z.
+  Zmod (Word.unsigned addr) chunkSize = 0%Z.
 Proof.
- intros. unfold checkCallAlignment in H. apply Int32Set.for_all_spec in H.
- unfold Int32Set.For_all in H.
- unfold aligned_bool in H.
- rewrite -> Zeq_is_eq_bool.
- replace (unsigned addr + 2)%Z with (unsigned (addr +32_p 2))%Z.
- apply H. exact H1.
- simpl.
- rewrite <- eqmod_small_eq with (modul:=w32modulus) (x:=((unsigned addr + 2 mod w32modulus) mod w32modulus)%Z).
- reflexivity.
- apply eqmod_sym.
- apply eqmod_mod. compute. reflexivity.
- apply Z_mod_lt. compute. reflexivity.
-  unfold int32_lequ_bool in H0. rewrite -> int_lequ_true_iff in H0.
-  split.
-    assert (0 <= unsigned addr).
-      apply unsigned_range.
-    omega.
-    rewrite -> unsigned_repr in H0. unfold modulus, wordsize.
-    rewrite -> two_power_nat_S.
-    assert (two_power_nat 31 > 0) by apply two_power_nat_pos.
-    omega. unfold max_unsigned. unfold modulus, wordsize.
-  assert (two_power_nat 31 > 0) by apply two_power_nat_pos.
-  rewrite -> two_power_nat_S with (n:=31%nat).
-  split.
-    do 2 rewrite -> two_power_nat_S.
-    assert (two_power_nat 29 > 0) by apply two_power_nat_pos.
-    omega.
-    omega.
+  intros. unfold checkCallAlignment in H. apply Int32Set.for_all_spec in H.
+  unfold Int32Set.For_all in H.
+  unfold aligned_bool in H.
+  rewrite -> Zeq_is_eq_bool.
+  apply H. exact H1.
   unfold Morphisms.Proper, Morphisms.respectful.
-  intros. apply int_eq_true_iff2 in H. prover.
+  intros. apply int_eq_true_iff2 in H2. rewrite -> H2. reflexivity.
 Qed.
 
 Lemma checkExecSectionLowMem_corr : forall (start length : int32),
